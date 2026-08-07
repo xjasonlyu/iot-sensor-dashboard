@@ -1,0 +1,754 @@
+openapi: 3.1.0
+
+info:
+  title: IoT Sensor Dashboard API
+  version: 1.0.0
+  description: |
+    REST and Server-Sent Events (SSE) API for the IoT Sensor Dashboard.
+
+    Historical and summary data is exposed over JSON REST endpoints. Live sensor
+    readings, sensor events, and activity updates are delivered through the SSE
+    endpoint. API access tokens are expected to be issued by an external OAuth
+    2.0/OpenID Connect provider and validated by the backend.
+
+servers:
+  - url: http://localhost:3000
+    description: Local Docker Compose entry point (through the frontend reverse proxy)
+
+tags:
+  - name: System
+  - name: Identity
+  - name: Dashboard
+  - name: Networks
+  - name: Sensors
+  - name: Realtime
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check service health and readiness
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: The service is ready to accept traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: The process is running, but one or more dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/v1/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get the authenticated user
+      tags: [Identity]
+      responses:
+        "200":
+          description: The identity derived from the validated access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Get the current dashboard summary
+      tags: [Dashboard]
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdQuery"
+        - name: range
+          in: query
+          description: Time range used to calculate summary statistics.
+          schema:
+            $ref: "#/components/schemas/TimeRange"
+            default: 24h
+      responses:
+        "200":
+          description: Current readings and statistics for the selected network.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/networks:
+    get:
+      operationId: listNetworks
+      summary: List networks visible to the authenticated user
+      tags: [Networks]
+      responses:
+        "200":
+          description: Available IoT networks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Network"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/networks/{networkId}/activity:
+    get:
+      operationId: getNetworkActivity
+      summary: Get historical activity for a network
+      tags: [Networks]
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdPath"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: interval
+          in: query
+          description: Bucket size. Use `raw` to return stored 15-minute buckets unchanged.
+          schema:
+            $ref: "#/components/schemas/Interval"
+            default: raw
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Activity time-series points in ascending timestamp order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/sensors:
+    get:
+      operationId: listSensors
+      summary: List sensors and their latest status
+      tags: [Sensors]
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdQuery"
+      responses:
+        "200":
+          description: Sensors belonging to the selected network.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SensorList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/sensors/{sensorId}/readings:
+    get:
+      operationId: getSensorReadings
+      summary: Get historical numeric readings for a sensor
+      tags: [Sensors]
+      parameters:
+        - $ref: "#/components/parameters/SensorIdPath"
+        - name: metric
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Metric"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: interval
+          in: query
+          description: Aggregation interval. Use `raw` for unaggregated readings.
+          schema:
+            $ref: "#/components/schemas/Interval"
+            default: raw
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Numeric readings in ascending timestamp order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/sensors/{sensorId}/events:
+    get:
+      operationId: getSensorEvents
+      summary: Get historical discrete events for a sensor
+      tags: [Sensors]
+      parameters:
+        - $ref: "#/components/parameters/SensorIdPath"
+        - name: type
+          in: query
+          description: Optionally filter by event type.
+          schema:
+            $ref: "#/components/schemas/SensorEventType"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Discrete sensor events in descending timestamp order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SensorEventPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/realtime/events:
+    get:
+      operationId: streamRealtimeEvents
+      summary: Stream live updates using Server-Sent Events
+      description: |
+        Opens a long-lived SSE connection for the selected network.
+
+        The server emits named events: `sensor.reading`, `sensor.event`,
+        `activity.updated`, and `heartbeat`. Each `data` field is a JSON-encoded
+        object described by the corresponding realtime schema.
+
+        The server sends an `id` with data events. Native `EventSource`
+        automatically reconnects and sends the most recent ID in the
+        `Last-Event-ID` header, allowing the backend to replay a small missed-event
+        buffer. Heartbeats should be sent periodically so intermediaries do not
+        close an otherwise idle connection.
+
+        Native browser `EventSource` cannot set an `Authorization` header. Use a
+        same-origin HttpOnly authentication cookie, or consume the stream with an
+        authenticated fetch-based SSE client that supports retry behavior. Do not
+        put a long-lived OAuth access token in the query string.
+      tags: [Realtime]
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdQuery"
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: ID of the last event processed by the client before reconnecting.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: |
+            A continuous `text/event-stream`. This response remains open until the
+            client disconnects or the server terminates it.
+          headers:
+            Cache-Control:
+              description: SSE responses must not be cached.
+              schema:
+                type: string
+                example: no-cache
+            X-Accel-Buffering:
+              description: Disables proxy buffering when supported.
+              schema:
+                type: string
+                example: "no"
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                id: 01J4Z6Y7YVW8G3PGFQW7RBM6NB
+                event: sensor.reading
+                data: {"type":"sensor.reading","occurredAt":"2026-08-06T12:00:10Z","data":{"id":"reading-123","sensorId":"SENSOR_7C3E822F6E550000","metric":"temperature","value":24.6,"unit":"C","timestamp":"2026-08-06T12:00:10Z"}}
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth 2.0/OpenID Connect access token issued for this API.
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: iot_dashboard_session
+      description: |
+        Same-origin HttpOnly session cookie created after an OpenID Connect
+        authorization-code flow. Intended primarily for native EventSource clients.
+
+  parameters:
+    NetworkIdPath:
+      name: networkId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    NetworkIdQuery:
+      name: networkId
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    SensorIdPath:
+      name: sensorId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: SENSOR_7C3E822F6E550000
+    From:
+      name: from
+      in: query
+      required: false
+      description: Inclusive range start. Defaults to 24 hours before `to`.
+      schema:
+        type: string
+        format: date-time
+    To:
+      name: to
+      in: query
+      required: false
+      description: Exclusive range end. Defaults to the current time.
+      schema:
+        type: string
+        format: date-time
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 500
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque continuation cursor returned by the previous request.
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Request parameters are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: A valid access token or authenticated session is required.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            example: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: The authenticated user cannot access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: The requested resource was not found or is not visible to the user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    TooManyRequests:
+      description: The client has opened too many requests or realtime connections.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, dependencies]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        dependencies:
+          type: object
+          required: [database, mqtt]
+          properties:
+            database:
+              $ref: "#/components/schemas/DependencyStatus"
+            mqtt:
+              $ref: "#/components/schemas/DependencyStatus"
+
+    DependencyStatus:
+      type: string
+      enum: [connected, disconnected]
+
+    User:
+      type: object
+      required: [id, roles]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, "null"]
+          format: email
+        displayName:
+          type: [string, "null"]
+        roles:
+          type: array
+          items:
+            type: string
+
+    Network:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          example: Home WiFi Motion Network
+
+    Sensor:
+      type: object
+      required: [id, networkId, location, capabilities, status]
+      properties:
+        id:
+          type: string
+          example: SENSOR_7C3E822F6E550000
+        networkId:
+          type: integer
+          minimum: 1
+        location:
+          type: string
+          example: Bathroom
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/SensorCapability"
+        status:
+          $ref: "#/components/schemas/SensorStatus"
+        lastSeenAt:
+          type: [string, "null"]
+          format: date-time
+        latestReadings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reading"
+
+    SensorCapability:
+      type: string
+      enum: [temperature, humidity, vibration]
+
+    SensorStatus:
+      type: string
+      enum: [online, offline, unknown]
+
+    SensorList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sensor"
+
+    Metric:
+      type: string
+      enum: [temperature, humidity]
+
+    Reading:
+      type: object
+      required: [id, sensorId, metric, value, unit, timestamp]
+      properties:
+        id:
+          type: string
+        sensorId:
+          type: string
+        metric:
+          $ref: "#/components/schemas/Metric"
+        value:
+          type: number
+        unit:
+          type: string
+          example: C
+        timestamp:
+          type: string
+          format: date-time
+
+    SensorEvent:
+      type: object
+      required: [id, sensorId, type, timestamp]
+      properties:
+        id:
+          type: string
+        sensorId:
+          type: string
+        type:
+          $ref: "#/components/schemas/SensorEventType"
+        timestamp:
+          type: string
+          format: date-time
+
+    SensorEventType:
+      type: string
+      enum: [detected]
+
+    ActivityPoint:
+      type: object
+      required: [networkId, activity, timestamp]
+      properties:
+        networkId:
+          type: integer
+          minimum: 1
+        activity:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fraction of the time bucket in which motion was detected.
+        timestamp:
+          type: string
+          format: date-time
+
+    MetricSummary:
+      type: object
+      required: [metric, current, unit, average, minimum, maximum, updatedAt]
+      properties:
+        metric:
+          $ref: "#/components/schemas/Metric"
+        current:
+          type: number
+        unit:
+          type: string
+        average:
+          type: number
+        minimum:
+          type: number
+        maximum:
+          type: number
+        updatedAt:
+          type: string
+          format: date-time
+
+    DashboardSummary:
+      type: object
+      required: [networkId, range, metrics, door, activity]
+      properties:
+        networkId:
+          type: integer
+          minimum: 1
+        range:
+          $ref: "#/components/schemas/TimeRange"
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricSummary"
+        door:
+          type: object
+          required: [eventCount]
+          properties:
+            lastDetectedAt:
+              type: [string, "null"]
+              format: date-time
+            eventCount:
+              type: integer
+              minimum: 0
+        activity:
+          type: object
+          required: [current, average, peak]
+          properties:
+            current:
+              type: number
+              minimum: 0
+              maximum: 1
+            average:
+              type: number
+              minimum: 0
+              maximum: 1
+            peak:
+              type: number
+              minimum: 0
+              maximum: 1
+
+    ReadingPage:
+      allOf:
+        - $ref: "#/components/schemas/PageMetadata"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Reading"
+
+    SensorEventPage:
+      allOf:
+        - $ref: "#/components/schemas/PageMetadata"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/SensorEvent"
+
+    ActivityPage:
+      allOf:
+        - $ref: "#/components/schemas/PageMetadata"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/ActivityPoint"
+
+    PageMetadata:
+      type: object
+      required: [nextCursor]
+      properties:
+        nextCursor:
+          type: [string, "null"]
+
+    RealtimeEventBase:
+      type: object
+      required: [id, type, occurredAt]
+      properties:
+        id:
+          type: string
+          description: Monotonically sortable event identifier used for SSE resume.
+        type:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+
+    SensorReadingRealtimeEvent:
+      allOf:
+        - $ref: "#/components/schemas/RealtimeEventBase"
+        - type: object
+          required: [data]
+          properties:
+            type:
+              const: sensor.reading
+            data:
+              $ref: "#/components/schemas/Reading"
+
+    SensorEventRealtimeEvent:
+      allOf:
+        - $ref: "#/components/schemas/RealtimeEventBase"
+        - type: object
+          required: [data]
+          properties:
+            type:
+              const: sensor.event
+            data:
+              $ref: "#/components/schemas/SensorEvent"
+
+    ActivityRealtimeEvent:
+      allOf:
+        - $ref: "#/components/schemas/RealtimeEventBase"
+        - type: object
+          required: [data]
+          properties:
+            type:
+              const: activity.updated
+            data:
+              $ref: "#/components/schemas/ActivityPoint"
+
+    HeartbeatRealtimeEvent:
+      allOf:
+        - $ref: "#/components/schemas/RealtimeEventBase"
+        - type: object
+          required: [data]
+          properties:
+            type:
+              const: heartbeat
+            data:
+              type: object
+              additionalProperties: false
+
+    RealtimeEvent:
+      oneOf:
+        - $ref: "#/components/schemas/SensorReadingRealtimeEvent"
+        - $ref: "#/components/schemas/SensorEventRealtimeEvent"
+        - $ref: "#/components/schemas/ActivityRealtimeEvent"
+        - $ref: "#/components/schemas/HeartbeatRealtimeEvent"
+      discriminator:
+        propertyName: type
+        mapping:
+          sensor.reading: "#/components/schemas/SensorReadingRealtimeEvent"
+          sensor.event: "#/components/schemas/SensorEventRealtimeEvent"
+          activity.updated: "#/components/schemas/ActivityRealtimeEvent"
+          heartbeat: "#/components/schemas/HeartbeatRealtimeEvent"
+
+    Interval:
+      type: string
+      enum: [raw, 1m, 5m, 15m, 1h, 1d]
+
+    TimeRange:
+      type: string
+      enum: [1h, 6h, 24h, 7d, 30d]
+
+    ApiError:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          example: INVALID_QUERY_PARAMETER
+        message:
+          type: string
+          example: The `from` timestamp must be earlier than `to`.
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
