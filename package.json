@@ -1,0 +1,12 @@
+{
+  "name": "iot-sensor-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "api:generate": "npm --prefix packages/api-contract run generate",
+    "backend:typecheck": "npm --prefix backend run typecheck",
+    "frontend:typecheck": "npm --prefix frontend run typecheck",
+    "backend:build": "npm --prefix backend run build",
+    "frontend:build": "npm --prefix frontend run build"
+  }
+}

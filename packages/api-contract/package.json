@@ -1,0 +1,16 @@
+{
+  "name": "@iot-dashboard/api-contract",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src/index.d.ts"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript ../../api_spec.yaml -o src/index.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

@@ -1,14 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "start": "tsx src/server.ts",
+    "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@iot-dashboard/api-contract": "file:../packages/api-contract",
     "cors": "^2.8.5",
     "express": "^4.18.2"
   },

@@ -3,25 +3,18 @@
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-
     "module": "ESNext",
     "moduleResolution": "Bundler",
-
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-
+    "jsx": "react-jsx",
+    "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-
-    "strict": true,
-    "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "noEmit": true,
     "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["vite/client"],
+    "types": ["vite/client"]
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]

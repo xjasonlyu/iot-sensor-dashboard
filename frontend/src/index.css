@@ -1,24 +1,155 @@
+:root {
+  color: #e8eef8;
+  background: #0b1020;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+button,
+input {
+  font: inherit;
 }
 
-.container {
-  padding: 40px;
-  text-align: center;
+.app-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
 }
 
-.message {
-  font-size: 24px;
-  margin-top: 20px;
-  color: #333;
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.app-header h1,
+.sensor-card h2,
+.event-panel h2 {
+  margin: 0;
+}
+
+.eyebrow,
+.sensor-card p {
+  margin: 0 0 6px;
+  color: #8ea2c8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #2a3855;
+  border-radius: 999px;
+  color: #aab8d1;
+  background: #111a2f;
+}
+
+.connection__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f6b94b;
+}
+
+.connection--open .connection__dot {
+  background: #3ddc97;
+  box-shadow: 0 0 12px #3ddc97;
+}
+
+.connection--closed .connection__dot {
+  background: #f16f6f;
+}
+
+.notice {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #151f36;
+}
+
+.notice--error {
+  color: #ffd4d4;
+  background: #3b1b27;
+}
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.sensor-card,
+.event-panel {
+  border: 1px solid #24324e;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #151f36, #10182b);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 18%);
+}
+
+.sensor-card {
+  padding: 22px;
+}
+
+.sensor-card h2 {
+  color: #b7c5dd;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.sensor-card strong {
+  display: block;
+  margin: 14px 0 8px;
+  font-size: 2.6rem;
+}
+
+.sensor-card strong span {
+  margin-left: 5px;
+  color: #8ea2c8;
+  font-size: 1rem;
+}
+
+.sensor-card small,
+.event-panel p {
+  color: #8ea2c8;
+}
+
+.event-panel {
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.event-panel pre {
+  min-height: 80px;
+  margin: 18px 0 0;
+  padding: 16px;
+  overflow: auto;
+  border-radius: 10px;
+  color: #a9f0cf;
+  background: #080d18;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

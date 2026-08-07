@@ -245,14 +245,12 @@ paths:
         buffer. Heartbeats should be sent periodically so intermediaries do not
         close an otherwise idle connection.
 
-        Native browser `EventSource` cannot set an `Authorization` header. Use a
-        same-origin HttpOnly authentication cookie, or consume the stream with an
-        authenticated fetch-based SSE client that supports retry behavior. Do not
-        put a long-lived OAuth access token in the query string.
+        Native browser `EventSource` cannot set an `Authorization` header, so the
+        frontend consumes this stream with an authenticated fetch-based SSE client.
+        The client is responsible for reconnecting with the latest access token and
+        `Last-Event-ID`. Do not put a long-lived OAuth access token in the query
+        string.
       tags: [Realtime]
-      security:
-        - bearerAuth: []
-        - sessionCookie: []
       parameters:
         - $ref: "#/components/parameters/NetworkIdQuery"
         - name: Last-Event-ID
@@ -302,14 +300,6 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: OAuth 2.0/OpenID Connect access token issued for this API.
-    sessionCookie:
-      type: apiKey
-      in: cookie
-      name: iot_dashboard_session
-      description: |
-        Same-origin HttpOnly session cookie created after an OpenID Connect
-        authorization-code flow. Intended primarily for native EventSource clients.
-
   parameters:
     NetworkIdPath:
       name: networkId
