@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { components } from '@iot-dashboard/api-contract'
-import { apiClient } from './api/client'
+import type {
+  ActivityPoint,
+  DashboardSummary,
+  Reading,
+  Sensor,
+  SensorEvent,
+} from '@iot-dashboard/api-contract'
+import { apiErrorMessage, dashboardApi, networksApi, sensorsApi } from './api/client'
 import type { RealtimeEvent } from './api/sse'
 import { ActivityChart, ClimateChart } from './components/DashboardCharts'
 import { MetricCard } from './components/MetricCard'
@@ -10,12 +16,6 @@ import {
   RANGE_MILLISECONDS,
   type TimeRange,
 } from './timeRanges'
-
-type ActivityPoint = components['schemas']['ActivityPoint']
-type DashboardSummary = components['schemas']['DashboardSummary']
-type Reading = components['schemas']['Reading']
-type Sensor = components['schemas']['Sensor']
-type SensorEvent = components['schemas']['SensorEvent']
 
 const NETWORK_ID = 1
 const MAX_LIVE_POINTS = 1_200
@@ -31,13 +31,6 @@ const chartModeLabels: Record<TimeRange, string> = {
   '24h': '15 min avg · live',
   '7d': '1 hour avg · live',
   '30d': '1 day avg · live',
-}
-
-function errorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String(error.message)
-  }
-  return 'The API returned an unexpected response.'
 }
 
 function formatValue(value: number | undefined, fractionDigits = 1): string {
@@ -96,15 +89,12 @@ function App() {
       const from = new Date(requestedAt - RANGE_MILLISECONDS[range]).toISOString()
       const interval = RANGE_INTERVALS[range]
       setChartEndAt(requestedAt)
-      const sensorsResult = await apiClient.GET('/api/v1/sensors', {
-        params: { query: { networkId: NETWORK_ID } },
-        signal: controller.signal,
-      })
-      if (sensorsResult.error || !sensorsResult.data) {
-        throw new Error(errorMessage(sensorsResult.error))
-      }
+      const sensorsResponse = await sensorsApi.listSensors(
+        { networkId: NETWORK_ID },
+        { signal: controller.signal },
+      )
 
-      const nextSensors = sensorsResult.data.data
+      const nextSensors = sensorsResponse.data
       const climateSensor = nextSensors.find(
         (sensor) =>
           sensor.capabilities.includes('temperature') &&
@@ -117,72 +107,70 @@ function App() {
         throw new Error('The expected climate and door sensors were not found.')
       }
 
-      const [summaryResult, temperatureResult, humidityResult, activityResult, eventsResult] =
-        await Promise.all([
-          apiClient.GET('/api/v1/dashboard/summary', {
-            params: { query: { networkId: NETWORK_ID, range } },
-            signal: controller.signal,
-          }),
-          apiClient.GET('/api/v1/sensors/{sensorId}/readings', {
-            params: {
-              path: { sensorId: climateSensor.id },
-              query: { from, interval, limit: 1_000, metric: 'temperature' },
+      const [
+        summaryResponse,
+        temperatureResponse,
+        humidityResponse,
+        activityResponse,
+        eventsResponse,
+      ] = await Promise.all([
+          dashboardApi.getDashboardSummary(
+            { networkId: NETWORK_ID, range },
+            { signal: controller.signal },
+          ),
+          sensorsApi.getSensorReadings(
+            {
+              sensorId: climateSensor.id,
+              from,
+              interval,
+              limit: 1_000,
+              metric: 'temperature',
             },
-            signal: controller.signal,
-          }),
-          apiClient.GET('/api/v1/sensors/{sensorId}/readings', {
-            params: {
-              path: { sensorId: climateSensor.id },
-              query: { from, interval, limit: 1_000, metric: 'humidity' },
+            { signal: controller.signal },
+          ),
+          sensorsApi.getSensorReadings(
+            {
+              sensorId: climateSensor.id,
+              from,
+              interval,
+              limit: 1_000,
+              metric: 'humidity',
             },
-            signal: controller.signal,
-          }),
-          apiClient.GET('/api/v1/networks/{networkId}/activity', {
-            params: {
-              path: { networkId: NETWORK_ID },
-              query: { from, interval, limit: 1_000 },
+            { signal: controller.signal },
+          ),
+          networksApi.getNetworkActivity(
+            {
+              networkId: NETWORK_ID,
+              from,
+              interval,
+              limit: 1_000,
             },
-            signal: controller.signal,
-          }),
-          apiClient.GET('/api/v1/sensors/{sensorId}/events', {
-            params: {
-              path: { sensorId: doorSensor.id },
-              query: { from, limit: 8, type: 'detected' },
+            { signal: controller.signal },
+          ),
+          sensorsApi.getSensorEvents(
+            {
+              sensorId: doorSensor.id,
+              from,
+              limit: 8,
+              type: 'detected',
             },
-            signal: controller.signal,
-          }),
+            { signal: controller.signal },
+          ),
         ])
-
-      const failed = [
-        summaryResult,
-        temperatureResult,
-        humidityResult,
-        activityResult,
-        eventsResult,
-      ].find((result) => result.error)
-      if (failed?.error) throw new Error(errorMessage(failed.error))
-      if (
-        !summaryResult.data ||
-        !temperatureResult.data ||
-        !humidityResult.data ||
-        !activityResult.data ||
-        !eventsResult.data
-      ) {
-        throw new Error('One or more dashboard responses did not contain data.')
-      }
 
       if (controller.signal.aborted) return
       setSensors(nextSensors)
-      setSummary(summaryResult.data)
-      setTemperature(temperatureResult.data.data)
-      setHumidity(humidityResult.data.data)
-      setActivity(activityResult.data.data)
-      setDoorEvents(eventsResult.data.data)
+      setSummary(summaryResponse)
+      setTemperature(temperatureResponse.data)
+      setHumidity(humidityResponse.data)
+      setActivity(activityResponse.data)
+      setDoorEvents(eventsResponse.data)
     }
 
     void loadDashboard()
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) setApiError(errorMessage(error))
+      .catch(async (error: unknown) => {
+        const message = await apiErrorMessage(error)
+        if (!controller.signal.aborted) setApiError(message)
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)

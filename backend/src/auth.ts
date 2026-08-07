@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { RequestHandler } from 'express'
-import type { components } from '@iot-dashboard/api-contract'
-
-type ApiError = components['schemas']['ApiError']
-type User = components['schemas']['User']
+import type { ApiError, User } from '@iot-dashboard/api-contract'
 
 export const developmentUser: User = {
   id: 'development-user',

@@ -1,26 +1,26 @@
 import { randomUUID } from 'node:crypto'
 import { Router } from 'express'
 import type { Request, RequestHandler, Response } from 'express'
-import type { components } from '@iot-dashboard/api-contract'
+import type {
+  ActivityPage,
+  ApiError,
+  DashboardSummary,
+  Interval,
+  Metric,
+  Reading,
+  ReadingPage,
+  Sensor,
+  SensorCapability,
+  SensorEvent,
+  SensorEventPage,
+  SensorList,
+  SensorStatus,
+  TimeRange,
+} from '@iot-dashboard/api-contract'
 import { developmentUser } from './auth.js'
 import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './prisma.js'
 import { streamRealtimeEvents } from './realtime.js'
-
-type ActivityPage = components['schemas']['ActivityPage']
-type ApiError = components['schemas']['ApiError']
-type DashboardSummary = components['schemas']['DashboardSummary']
-type Interval = components['schemas']['Interval']
-type Metric = components['schemas']['Metric']
-type Reading = components['schemas']['Reading']
-type ReadingPage = components['schemas']['ReadingPage']
-type Sensor = components['schemas']['Sensor']
-type SensorCapability = components['schemas']['SensorCapability']
-type SensorEvent = components['schemas']['SensorEvent']
-type SensorEventPage = components['schemas']['SensorEventPage']
-type SensorList = components['schemas']['SensorList']
-type SensorStatus = components['schemas']['SensorStatus']
-type TimeRange = components['schemas']['TimeRange']
 
 const timeRanges = new Set<TimeRange>(['1h', '6h', '24h', '7d', '30d'])
 const rangeMilliseconds: Record<TimeRange, number> = {

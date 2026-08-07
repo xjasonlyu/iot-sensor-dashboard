@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { components } from '@iot-dashboard/api-contract'
+import type { ActivityPoint, Reading } from '@iot-dashboard/api-contract'
 import {
   Area,
   AreaChart,
@@ -18,8 +18,6 @@ import {
   type TimeRange,
 } from '../timeRanges'
 
-type ActivityPoint = components['schemas']['ActivityPoint']
-type Reading = components['schemas']['Reading']
 type ClimateChartPoint = {
   humidity?: number
   temperature?: number

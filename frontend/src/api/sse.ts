@@ -1,7 +1,7 @@
-import type { components } from '@iot-dashboard/api-contract'
-import { apiBaseUrl, getAccessToken } from './client'
+import type { RealtimeEvent } from '@iot-dashboard/api-contract'
+import { apiErrorMessage, realtimeApi } from './client'
 
-export type RealtimeEvent = components['schemas']['RealtimeEvent']
+export type { RealtimeEvent } from '@iot-dashboard/api-contract'
 export type RealtimeStatus = 'connecting' | 'open' | 'reconnecting' | 'closed'
 
 interface StreamOptions {
@@ -115,21 +115,18 @@ export async function streamRealtimeEvents(options: StreamOptions): Promise<void
     onStatus(failedAttempts === 0 ? 'connecting' : 'reconnecting')
 
     try {
-      const accessToken = await getAccessToken()
-      const headers = new Headers({ Accept: 'text/event-stream' })
-      if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-      if (lastEventId) headers.set('Last-Event-ID', lastEventId)
-
-      const url = new URL(
-        '/api/v1/realtime/events',
-        apiBaseUrl ? new URL(apiBaseUrl, window.location.origin) : window.location.origin,
+      const apiResponse = await realtimeApi.streamRealtimeEventsRaw(
+        {
+          networkId,
+          ...(lastEventId ? { lastEventID: lastEventId } : {}),
+        },
+        async ({ init }) => ({
+          ...init,
+          headers: { ...init.headers, Accept: 'text/event-stream' },
+          signal,
+        }),
       )
-      url.searchParams.set('networkId', String(networkId))
-
-      const response = await fetch(url, { headers, signal })
-      if (!response.ok) {
-        throw new Error(`SSE connection failed with HTTP ${response.status}.`)
-      }
+      const response = apiResponse.raw
       if (!response.headers.get('content-type')?.includes('text/event-stream')) {
         throw new Error('The server did not return an SSE content type.')
       }
@@ -157,7 +154,7 @@ export async function streamRealtimeEvents(options: StreamOptions): Promise<void
     } catch (error) {
       if (signal.aborted) break
 
-      const normalizedError = error instanceof Error ? error : new Error(String(error))
+      const normalizedError = new Error(await apiErrorMessage(error))
       onError?.(normalizedError)
       failedAttempts += 1
       onStatus('reconnecting')

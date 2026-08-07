@@ -4,6 +4,7 @@ FROM node:22-alpine AS build
 WORKDIR /workspace
 
 COPY packages/api-contract/package.json ./packages/api-contract/package.json
+COPY packages/api-contract/dist ./packages/api-contract/dist
 COPY packages/api-contract/src ./packages/api-contract/src
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 

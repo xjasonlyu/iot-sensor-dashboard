@@ -84,8 +84,8 @@ and TLS.
 
 ## API contract
 
-`api_spec.yaml` is the source of truth for the REST and SSE interface. Generated
-TypeScript definitions are shared by frontend and backend through
+`api_spec.yaml` is the source of truth for the REST and SSE interface. OpenAPI
+Generator produces the shared TypeScript models and Fetch client in
 `packages/api-contract`.
 
 Regenerate them after changing the spec:
@@ -93,6 +93,11 @@ Regenerate them after changing the spec:
 ```bash
 npm run api:generate
 ```
+
+Client generation uses the pinned `openapitools/openapi-generator-cli:v7.24.0`
+Docker image, so it requires Docker but does not require a local Java installation.
+Both the readable source in `packages/api-contract/src/generated` and the compiled
+client in `packages/api-contract/dist` are checked in; do not edit either directly.
 
 Main endpoints:
 

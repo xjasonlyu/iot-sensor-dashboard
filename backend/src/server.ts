@@ -1,14 +1,11 @@
 import express, { type ErrorRequestHandler } from 'express'
 import cors from 'cors'
 import { randomUUID } from 'node:crypto'
-import type { components } from '@iot-dashboard/api-contract'
+import type { ApiError, HealthResponse } from '@iot-dashboard/api-contract'
 import { authenticate } from './auth.js'
 import { closeDatabase, initializeDatabase, isDatabaseConnected } from './database.js'
 import { isMqttConnected, startMqtt, stopMqtt } from './mqtt.js'
 import { apiRouter } from './routes.js'
-
-type ApiError = components['schemas']['ApiError']
-type HealthResponse = components['schemas']['HealthResponse']
 
 const app = express()
 const port = 9000

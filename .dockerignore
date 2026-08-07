@@ -1,8 +1,8 @@
-!packages/api-contract/dist/**
 .git
 .env
 **/node_modules
 **/dist
+!packages/api-contract/dist/**
 **/__pycache__
 *.log
 .DS_Store

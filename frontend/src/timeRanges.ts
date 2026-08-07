@@ -1,6 +1,6 @@
-import type { components } from '@iot-dashboard/api-contract'
+import type { Interval, TimeRange } from '@iot-dashboard/api-contract'
 
-export type TimeRange = components['schemas']['TimeRange']
+export type { TimeRange } from '@iot-dashboard/api-contract'
 
 export const RANGE_MILLISECONDS: Record<TimeRange, number> = {
   '1h': 60 * 60 * 1_000,
@@ -10,10 +10,7 @@ export const RANGE_MILLISECONDS: Record<TimeRange, number> = {
   '30d': 30 * 24 * 60 * 60 * 1_000,
 }
 
-export const RANGE_INTERVALS: Record<
-  TimeRange,
-  components['schemas']['Interval']
-> = {
+export const RANGE_INTERVALS: Record<TimeRange, Interval> = {
   '1h': '1m',
   '6h': '5m',
   '24h': '15m',

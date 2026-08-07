@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
-import type { components } from '@iot-dashboard/api-contract'
+import type { RealtimeEvent } from '@iot-dashboard/api-contract'
 
-export type RealtimeEvent = components['schemas']['RealtimeEvent']
+export type { RealtimeEvent } from '@iot-dashboard/api-contract'
 
 const MAX_BUFFERED_EVENTS = 100
 

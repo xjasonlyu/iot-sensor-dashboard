@@ -1,8 +1,6 @@
-import type { components } from '@iot-dashboard/api-contract'
+import type { RealtimeEvent } from '@iot-dashboard/api-contract'
 import { loadInitialData } from './load-initial-data.js'
 import { prisma } from './prisma.js'
-
-type RealtimeEvent = components['schemas']['RealtimeEvent']
 
 export async function initializeDatabase(): Promise<void> {
   await prisma.$connect()
