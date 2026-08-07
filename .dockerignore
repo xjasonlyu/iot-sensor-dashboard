@@ -1,6 +1,5 @@
+!packages/api-contract/dist/**
 .git
-.agents
-.codex
 .env
 **/node_modules
 **/dist

@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 
 info:
   title: IoT Sensor Dashboard API
@@ -451,10 +451,12 @@ components:
         id:
           type: string
         email:
-          type: [string, "null"]
+          type: string
           format: email
+          nullable: true
         displayName:
-          type: [string, "null"]
+          type: string
+          nullable: true
         roles:
           type: array
           items:
@@ -491,8 +493,9 @@ components:
         status:
           $ref: "#/components/schemas/SensorStatus"
         lastSeenAt:
-          type: [string, "null"]
+          type: string
           format: date-time
+          nullable: true
         latestReadings:
           type: array
           items:
@@ -610,8 +613,9 @@ components:
           required: [eventCount]
           properties:
             lastDetectedAt:
-              type: [string, "null"]
+              type: string
               format: date-time
+              nullable: true
             eventCount:
               type: integer
               minimum: 0
@@ -670,7 +674,8 @@ components:
       required: [nextCursor]
       properties:
         nextCursor:
-          type: [string, "null"]
+          type: string
+          nullable: true
 
     RealtimeEventBase:
       type: object
@@ -692,7 +697,8 @@ components:
           required: [data]
           properties:
             type:
-              const: sensor.reading
+              type: string
+              enum: [sensor.reading]
             data:
               $ref: "#/components/schemas/Reading"
 
@@ -703,7 +709,8 @@ components:
           required: [data]
           properties:
             type:
-              const: sensor.event
+              type: string
+              enum: [sensor.event]
             data:
               $ref: "#/components/schemas/SensorEvent"
 
@@ -714,7 +721,8 @@ components:
           required: [data]
           properties:
             type:
-              const: activity.updated
+              type: string
+              enum: [activity.updated]
             data:
               $ref: "#/components/schemas/ActivityPoint"
 
@@ -725,7 +733,8 @@ components:
           required: [data]
           properties:
             type:
-              const: heartbeat
+              type: string
+              enum: [heartbeat]
             data:
               type: object
               additionalProperties: false

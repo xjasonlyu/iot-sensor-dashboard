@@ -3,14 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "types": "./src/index.d.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
-    "src/index.d.ts"
+    "dist",
+    "src/generated"
   ],
   "scripts": {
-    "generate": "openapi-typescript ../../api_spec.yaml -o src/index.d.ts"
+    "generate": "sh ./scripts/generate.sh"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.13.0"
+    "typescript": "^5.9.3"
   }
 }
