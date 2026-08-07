@@ -12,8 +12,8 @@ info:
     2.0/OpenID Connect provider and validated by the backend.
 
 servers:
-  - url: http://localhost:3000
-    description: Local Docker Compose entry point (through the frontend reverse proxy)
+  - url: http://localhost:9000
+    description: Local Docker Compose backend
 
 tags:
   - name: System
