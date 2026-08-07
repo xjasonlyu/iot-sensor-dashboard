@@ -343,9 +343,7 @@ export interface components {
         /** @enum {string} */
         TimeRange: "1h" | "6h" | "24h" | "7d" | "30d";
         ApiError: {
-            /** @example INVALID_QUERY_PARAMETER */
             code: string;
-            /** @example The `from` timestamp must be earlier than `to`. */
             message: string;
             requestId: string;
             details?: {
@@ -360,6 +358,13 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "code": "INVALID_QUERY_PARAMETER",
+                 *       "message": "The `from` timestamp must be earlier than `to`.",
+                 *       "requestId": "2f1d0c26-9644-4f9f-a770-41c1e8bdb5f8"
+                 *     }
+                 */
                 "application/json": components["schemas"]["ApiError"];
             };
         };
@@ -370,6 +375,13 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "code": "UNAUTHORIZED",
+                 *       "message": "A valid OAuth access token is required.",
+                 *       "requestId": "2f1d0c26-9644-4f9f-a770-41c1e8bdb5f8"
+                 *     }
+                 */
                 "application/json": components["schemas"]["ApiError"];
             };
         };
@@ -379,6 +391,13 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "code": "FORBIDDEN",
+                 *       "message": "You do not have access to this resource.",
+                 *       "requestId": "2f1d0c26-9644-4f9f-a770-41c1e8bdb5f8"
+                 *     }
+                 */
                 "application/json": components["schemas"]["ApiError"];
             };
         };
@@ -388,6 +407,13 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "code": "NOT_FOUND",
+                 *       "message": "The requested resource was not found.",
+                 *       "requestId": "2f1d0c26-9644-4f9f-a770-41c1e8bdb5f8"
+                 *     }
+                 */
                 "application/json": components["schemas"]["ApiError"];
             };
         };
@@ -398,6 +424,13 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "code": "TOO_MANY_REQUESTS",
+                 *       "message": "Too many realtime connections.",
+                 *       "requestId": "2f1d0c26-9644-4f9f-a770-41c1e8bdb5f8"
+                 *     }
+                 */
                 "application/json": components["schemas"]["ApiError"];
             };
         };
@@ -445,6 +478,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "status": "degraded",
+                     *       "dependencies": {
+                     *         "database": "disconnected",
+                     *         "mqtt": "connected"
+                     *       }
+                     *     }
+                     */
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
