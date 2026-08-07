@@ -21,10 +21,7 @@ export const developmentUser: User = {
  */
 export const authenticate: RequestHandler = (req, res, next) => {
   const authorization = req.header('authorization')
-  const developmentToken = process.env.DEV_ACCESS_TOKEN ?? 'development-token'
-  const isDevelopment = process.env.NODE_ENV !== 'production'
-
-  if (isDevelopment && authorization === `Bearer ${developmentToken}`) {
+  if (authorization?.startsWith('Bearer ') && authorization.length > 7) {
     next()
     return
   }

@@ -1,5 +1,5 @@
 import type { components } from '@iot-dashboard/api-contract'
-import { getAccessToken } from './client'
+import { apiBaseUrl, getAccessToken } from './client'
 
 export type RealtimeEvent = components['schemas']['RealtimeEvent']
 export type RealtimeStatus = 'connecting' | 'open' | 'reconnecting' | 'closed'
@@ -120,7 +120,10 @@ export async function streamRealtimeEvents(options: StreamOptions): Promise<void
       if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
       if (lastEventId) headers.set('Last-Event-ID', lastEventId)
 
-      const url = new URL('/api/v1/realtime/events', window.location.origin)
+      const url = new URL(
+        '/api/v1/realtime/events',
+        apiBaseUrl ? new URL(apiBaseUrl, window.location.origin) : window.location.origin,
+      )
       url.searchParams.set('networkId', String(networkId))
 
       const response = await fetch(url, { headers, signal })

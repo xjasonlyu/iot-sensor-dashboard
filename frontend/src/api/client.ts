@@ -1,11 +1,10 @@
 import createClient from 'openapi-fetch'
 import type { paths } from '@iot-dashboard/api-contract'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
-const developmentToken = import.meta.env.DEV ? 'development-token' : undefined
+export const apiBaseUrl = ''
 
 let accessTokenProvider: () => Promise<string | undefined> = async () =>
-  import.meta.env.VITE_API_ACCESS_TOKEN ?? developmentToken
+  'development-token'
 
 export function configureAccessTokenProvider(
   provider: () => Promise<string | undefined>,

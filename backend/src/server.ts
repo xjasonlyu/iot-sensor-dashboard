@@ -3,29 +3,33 @@ import cors from 'cors'
 import { randomUUID } from 'node:crypto'
 import type { components } from '@iot-dashboard/api-contract'
 import { authenticate } from './auth.js'
+import { closeDatabase, initializeDatabase, isDatabaseConnected } from './database.js'
+import { isMqttConnected, startMqtt, stopMqtt } from './mqtt.js'
 import { apiRouter } from './routes.js'
 
 type ApiError = components['schemas']['ApiError']
 type HealthResponse = components['schemas']['HealthResponse']
 
 const app = express()
-const port = Number(process.env.PORT ?? 5000)
+const port = 9000
 
 app.disable('x-powered-by')
 app.use(cors())
 app.use(express.json())
 
-app.get('/health', (_req, res) => {
+app.get('/health', async (_req, res) => {
+  const databaseConnected = await isDatabaseConnected()
+  const mqttConnected = isMqttConnected()
+  const ready = databaseConnected && mqttConnected
   const health: HealthResponse = {
-    status: 'degraded',
+    status: ready ? 'ok' : 'degraded',
     dependencies: {
-      database: 'disconnected',
-      mqtt: 'disconnected',
+      database: databaseConnected ? 'connected' : 'disconnected',
+      mqtt: mqttConnected ? 'connected' : 'disconnected',
     },
   }
 
-  // The route shape is ready; switch to 503 once Docker health checks depend on it.
-  res.status(200).json(health)
+  res.status(ready ? 200 : 503).json(health)
 })
 
 app.use('/api/v1', authenticate, apiRouter)
@@ -42,6 +46,19 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
 
 app.use(errorHandler)
 
-app.listen(port, () => {
+await initializeDatabase()
+startMqtt()
+
+const server = app.listen(port, () => {
   console.log(`Backend server running on http://localhost:${port}`)
 })
+
+async function shutdown(signal: string): Promise<void> {
+  console.log(`Received ${signal}; shutting down`)
+  server.close()
+  await Promise.all([stopMqtt(), closeDatabase()])
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'))
+process.on('SIGINT', () => void shutdown('SIGINT'))

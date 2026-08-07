@@ -1,0 +1,77 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  engineType          = "client"
+  runtime             = "nodejs"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Network {
+  id       Int              @id
+  name     String
+  sensors  Sensor[]
+  activity ActivityBucket[]
+
+  @@map("networks")
+}
+
+model Sensor {
+  id           String          @id @map("thing_name")
+  networkId    Int             @map("network_id")
+  location     String          @map("location_name")
+  capabilities String[]        @default([])
+  lastSeenAt   DateTime?       @map("last_seen_at") @db.Timestamptz
+  network      Network         @relation(fields: [networkId], references: [id])
+  readings     SensorReading[]
+  events       SensorEvent[]
+
+  @@index([networkId])
+  @@map("sensors")
+}
+
+model SensorReading {
+  id         String   @id
+  sensorId   String   @map("thing_name")
+  metric     String
+  value      Float
+  unit       String
+  recordedAt DateTime @map("recorded_at") @db.Timestamptz
+  sensor     Sensor   @relation(fields: [sensorId], references: [id])
+
+  @@index([sensorId, recordedAt], map: "sensor_readings_sensor_time_idx")
+  @@map("sensor_readings")
+}
+
+model SensorEvent {
+  id         String   @id
+  sensorId   String   @map("thing_name")
+  type       String   @map("event_type")
+  recordedAt DateTime @map("recorded_at") @db.Timestamptz
+  sensor     Sensor   @relation(fields: [sensorId], references: [id])
+
+  @@index([sensorId, recordedAt], map: "sensor_events_sensor_time_idx")
+  @@map("sensor_events")
+}
+
+model ActivityBucket {
+  networkId  Int      @map("network_id")
+  recordedAt DateTime @map("recorded_at") @db.Timestamptz
+  activity   Float
+  network    Network  @relation(fields: [networkId], references: [id])
+
+  @@id([networkId, recordedAt])
+  @@index([recordedAt])
+  @@map("activity_buckets")
+}
+
+model DataImport {
+  key        String   @id
+  importedAt DateTime @default(now()) @map("imported_at") @db.Timestamptz
+
+  @@map("data_imports")
+}
