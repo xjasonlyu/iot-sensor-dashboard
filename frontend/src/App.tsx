@@ -20,6 +20,7 @@ import {
 
 const NETWORK_ID = 1
 const MAX_LIVE_POINTS = 1_200
+const SENSOR_STATUS_POLL_MILLISECONDS = 15_000
 const ranges: Array<{ label: string; value: TimeRange }> = [
   { label: '1H', value: '1h' },
   { label: '6H', value: '6h' },
@@ -63,6 +64,31 @@ function upsertTimestamped<T extends { timestamp: string }>(
   return [...items.filter((item) => item.timestamp !== nextItem.timestamp), nextItem]
     .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
     .slice(-maxItems)
+}
+
+function mergeSensorSnapshots(current: Sensor[], refreshed: Sensor[]): Sensor[] {
+  const currentById = new Map(current.map((sensor) => [sensor.id, sensor]))
+
+  return refreshed.map((sensor) => {
+    const existing = currentById.get(sensor.id)
+    if (!existing?.lastSeenAt) return sensor
+
+    const existingLastSeen = Date.parse(existing.lastSeenAt)
+    const refreshedLastSeen = Date.parse(sensor.lastSeenAt ?? '')
+    if (Number.isNaN(existingLastSeen)) return sensor
+    if (!Number.isNaN(refreshedLastSeen) && refreshedLastSeen >= existingLastSeen) {
+      return sensor
+    }
+
+    // A realtime event can arrive just before its database write completes.
+    // Preserve that newer local snapshot until the next status poll catches up.
+    return {
+      ...sensor,
+      lastSeenAt: existing.lastSeenAt,
+      ...(existing.latestReadings ? { latestReadings: existing.latestReadings } : {}),
+      status: existing.status,
+    }
+  })
 }
 
 function App() {
@@ -180,6 +206,39 @@ function App() {
     return () => controller.abort()
   }, [range, refreshKey])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    let requestInFlight = false
+
+    async function refreshSensorStatuses(): Promise<void> {
+      if (requestInFlight) return
+      requestInFlight = true
+      try {
+        const response = await sensorsApi.listSensors(
+          { networkId: NETWORK_ID },
+          { signal: controller.signal },
+        )
+        if (!controller.signal.aborted) {
+          setSensors((current) => mergeSensorSnapshots(current, response.data))
+        }
+      } catch {
+        // Keep the last known snapshot; the next interval retries automatically.
+      } finally {
+        requestInFlight = false
+      }
+    }
+
+    const timer = window.setInterval(
+      () => void refreshSensorStatuses(),
+      SENSOR_STATUS_POLL_MILLISECONDS,
+    )
+
+    return () => {
+      window.clearInterval(timer)
+      controller.abort()
+    }
+  }, [])
+
   const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
     setLastEventAt(event.occurredAt)
     const eventTime = Date.parse(event.occurredAt)
@@ -235,6 +294,17 @@ function App() {
     }
 
     if (event.type === 'sensor.event') {
+      setSensors((currentSensors) =>
+        currentSensors.map((sensor) =>
+          sensor.id === event.data.sensorId
+            ? {
+                ...sensor,
+                lastSeenAt: event.data.timestamp,
+                status: 'online',
+              }
+            : sensor,
+        ),
+      )
       setDoorEvents((current) => [
         event.data,
         ...current.filter((item) => item.id !== event.data.id),
