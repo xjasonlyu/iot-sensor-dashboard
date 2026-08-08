@@ -10,6 +10,7 @@ import { apiErrorMessage, dashboardApi, networksApi, sensorsApi } from './api/cl
 import type { RealtimeEvent } from './api/sse'
 import { ActivityChart, ClimateChart } from './components/DashboardCharts'
 import { MetricCard } from './components/MetricCard'
+import { SensorIcon } from './components/SensorIcon'
 import { useRealtimeEvents } from './hooks/useRealtimeEvents'
 import {
   RANGE_INTERVALS,
@@ -262,6 +263,19 @@ function App() {
   )
   const latestHumidity = summary?.metrics.find((metric) => metric.metric === 'humidity')
   const onlineSensors = sensors.filter((sensor) => sensor.status === 'online').length
+  const offlineSensors = sensors.length - onlineSensors
+  const dashboardStatus = loading && sensors.length === 0
+    ? 'Checking your home…'
+    : apiError
+      ? 'Dashboard needs attention.'
+      : offlineSensors > 0
+        ? `${offlineSensors} sensor${offlineSensors === 1 ? '' : 's'} offline.`
+        : 'Everything looks calm.'
+  const sensorStatus = loading && sensors.length === 0
+    ? 'Checking sensor status'
+    : sensors.length === 0
+      ? 'Sensor status unavailable'
+      : `${onlineSensors} of ${sensors.length} sensors online`
   const insight = useMemo(() => {
     const currentTemperature = latestTemperature?.current
     const currentHumidity = latestHumidity?.current
@@ -315,9 +329,9 @@ function App() {
       <section className="dashboard-heading">
         <div>
           <p className="eyebrow">WiFi motion network · Primary residence</p>
-          <h2>Everything looks calm.</h2>
+          <h2>{dashboardStatus}</h2>
           <p>
-            {onlineSensors} of {sensors.length || 2} sensors online
+            {sensorStatus}
             {lastEventAt ? ` · Last live update ${relativeTime(lastEventAt)}` : ''}
           </p>
         </div>
@@ -355,7 +369,7 @@ function App() {
         <MetricCard
           accent="orange"
           detail={`Avg ${formatValue(latestTemperature?.average)}° · ${range.toUpperCase()}`}
-          icon="°"
+          icon="temperature"
           label="Temperature"
           unit="°C"
           value={formatValue(latestTemperature?.current)}
@@ -363,7 +377,7 @@ function App() {
         <MetricCard
           accent="blue"
           detail={`Range ${formatValue(latestHumidity?.minimum, 0)}–${formatValue(latestHumidity?.maximum, 0)}%`}
-          icon="◌"
+          icon="humidity"
           label="Humidity"
           unit="%"
           value={formatValue(latestHumidity?.current, 0)}
@@ -371,7 +385,7 @@ function App() {
         <MetricCard
           accent="green"
           detail={`Average ${formatValue((summary?.activity.average ?? 0) * 100, 0)}%`}
-          icon="⌁"
+          icon="motion"
           label="Motion activity"
           unit="%"
           value={formatValue((summary?.activity.current ?? 0) * 100, 0)}
@@ -379,7 +393,7 @@ function App() {
         <MetricCard
           accent="violet"
           detail={`${summary?.door.eventCount ?? 0} detections in this view`}
-          icon="↗"
+          icon="door"
           label="Front door"
           value={relativeTime(summary?.door.lastDetectedAt)}
         />
@@ -442,7 +456,9 @@ function App() {
             <ol className="event-list">
               {doorEvents.slice(0, 5).map((event) => (
                 <li key={event.id}>
-                  <span className="event-list__icon" aria-hidden="true">↗</span>
+                  <span className="event-list__icon" aria-hidden="true">
+                    <SensorIcon name="motion" />
+                  </span>
                   <div>
                     <strong>Motion detected</strong>
                     <small>{new Date(event.timestamp).toLocaleString()}</small>

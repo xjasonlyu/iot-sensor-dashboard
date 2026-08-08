@@ -1,7 +1,9 @@
+import { SensorIcon, type SensorIconName } from './SensorIcon'
+
 interface MetricCardProps {
   accent: 'blue' | 'green' | 'orange' | 'violet'
   detail: string
-  icon: string
+  icon: SensorIconName
   label: string
   unit?: string
   value: string
@@ -19,7 +21,7 @@ export function MetricCard({
     <article className={`metric-card metric-card--${accent}`}>
       <div className="metric-card__heading">
         <span className="metric-card__icon" aria-hidden="true">
-          {icon}
+          <SensorIcon name={icon} />
         </span>
         <p>{label}</p>
       </div>

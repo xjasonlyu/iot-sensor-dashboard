@@ -293,14 +293,17 @@ button:focus-visible {
 
 .metric-card__icon {
   display: grid;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   color: var(--accent);
   background: var(--accent-soft);
-  font-size: 0.9rem;
-  font-weight: 900;
   place-items: center;
+}
+
+.sensor-icon {
+  width: 19px;
+  height: 19px;
 }
 
 .metric-card .metric-card__value {
@@ -481,9 +484,12 @@ button:focus-visible {
   border-radius: 9px;
   color: #7c4dce;
   background: #f0ebff;
-  font-size: 0.82rem;
-  font-weight: 900;
   place-items: center;
+}
+
+.event-list__icon .sensor-icon {
+  width: 17px;
+  height: 17px;
 }
 
 .event-list strong,
