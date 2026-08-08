@@ -279,6 +279,12 @@ export function ClimateChart({
               borderRadius: 12,
               color: '#fff',
             }}
+            formatter={(value, name) => {
+              const numericValue = Number(value ?? 0)
+              return name === 'Temperature °C'
+                ? [`${numericValue.toFixed(1)} °C`, 'Temperature']
+                : [`${numericValue.toFixed(0)}%`, 'Humidity']
+            }}
             labelFormatter={formatTooltipTime}
           />
           <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
