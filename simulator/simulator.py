@@ -25,7 +25,7 @@ MQTT_PORT = 1883
 MQTT_CLIENT_ID = "iot-dashboard-simulator"
 TOPIC_PREFIX = "iot"
 NETWORK_ID = 1
-INTERVAL_SECONDS = 3
+INTERVAL_SECONDS = 1
 DOOR_EVENT_PROBABILITY = 0.12
 
 BATHROOM_SENSOR_ID = "SENSOR_7C3E822F6E550000"
@@ -53,9 +53,11 @@ def event(event_type: str, data: dict[str, Any]) -> dict[str, Any]:
 
 
 def publish(client: mqtt.Client, topic: str, payload: dict[str, Any]) -> None:
-    result = client.publish(topic, json.dumps(payload, separators=(",", ":")), qos=1)
+    result = client.publish(topic, json.dumps(
+        payload, separators=(",", ":")), qos=1)
     if result.rc != mqtt.MQTT_ERR_SUCCESS:
-        raise RuntimeError(f"MQTT publish failed for {topic!r}: rc={result.rc}")
+        raise RuntimeError(
+            f"MQTT publish failed for {topic!r}: rc={result.rc}")
 
 
 def on_connect(
@@ -82,7 +84,8 @@ def on_disconnect(
 ) -> None:
     connected_event.clear()
     if not stop_event.is_set():
-        LOGGER.warning("MQTT disconnected (%s); the client will reconnect", reason_code)
+        LOGGER.warning(
+            "MQTT disconnected (%s); the client will reconnect", reason_code)
 
 
 def request_stop(_signum: int, _frame: Any) -> None:
@@ -114,7 +117,8 @@ def main() -> None:
                 continue
 
             timestamp = now_iso()
-            temperature = clamp(temperature + rng.uniform(-0.12, 0.12), 18.0, 32.0)
+            temperature = clamp(
+                temperature + rng.uniform(-0.12, 0.12), 18.0, 32.0)
             humidity = clamp(humidity + rng.uniform(-0.8, 0.8), 30.0, 80.0)
 
             readings_topic = (
