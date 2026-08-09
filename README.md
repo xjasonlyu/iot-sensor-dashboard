@@ -131,8 +131,10 @@ npm run api:generate
 
 Client generation uses the pinned `openapitools/openapi-generator-cli:v7.24.0`
 Docker image, so it requires Docker but does not require a local Java installation.
-Both the readable source in `packages/api-contract/src/generated` and the compiled
-client in `packages/api-contract/dist` are checked in; do not edit either directly.
+The generated TypeScript source in `packages/api-contract/src/generated` is checked
+in; do not edit it directly. The compiled client in `packages/api-contract/dist` is
+recreated from that source during Docker builds and by `npm run api:generate`, so a
+fresh clone never depends on ignored local build artifacts.
 
 Main endpoints:
 
