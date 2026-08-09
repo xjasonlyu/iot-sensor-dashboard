@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ActivityPoint,
   DashboardSummary,
@@ -18,13 +18,15 @@ import { MetricCard } from './components/MetricCard'
 import { SensorIcon } from './components/SensorIcon'
 import { useRealtimeEvents } from './hooks/useRealtimeEvents'
 import {
+  RANGE_BUCKET_MILLISECONDS,
   RANGE_INTERVALS,
   RANGE_MILLISECONDS,
   type TimeRange,
 } from './timeRanges'
 
 const NETWORK_ID = 1
-const MAX_LIVE_POINTS = 1_200
+const MAX_CHART_POINTS = 1_200
+const MAX_PROCESSED_EVENT_IDS = 2_000
 const SENSOR_OFFLINE_AFTER_MILLISECONDS = 5 * 60 * 1_000
 const SENSOR_STATUS_CHECK_MILLISECONDS = 15_000
 const ranges: Array<{ label: string; value: TimeRange }> = [
@@ -62,12 +64,22 @@ function relativeTime(timestamp: string | null | undefined): string {
   return new Date(timestamp).toLocaleDateString()
 }
 
-function upsertTimestamped<T extends { timestamp: string }>(
+function upsertRangeBucket<T extends { timestamp: string }>(
   items: T[],
   nextItem: T,
-  maxItems = MAX_LIVE_POINTS,
+  range: TimeRange,
+  maxItems = MAX_CHART_POINTS,
 ): T[] {
-  return [...items.filter((item) => item.timestamp !== nextItem.timestamp), nextItem]
+  const parsedTimestamp = Date.parse(nextItem.timestamp)
+  const bucketTimestamp = Number.isNaN(parsedTimestamp)
+    ? nextItem.timestamp
+    : new Date(
+        Math.floor(parsedTimestamp / RANGE_BUCKET_MILLISECONDS[range]) *
+          RANGE_BUCKET_MILLISECONDS[range],
+      ).toISOString()
+  const bucketedItem = { ...nextItem, timestamp: bucketTimestamp }
+
+  return [...items.filter((item) => item.timestamp !== bucketTimestamp), bucketedItem]
     .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
     .slice(-maxItems)
 }
@@ -99,6 +111,9 @@ function App({ onLogout }: AppProps) {
   const [chartEndAt, setChartEndAt] = useState(Date.now())
   const [lastEventAt, setLastEventAt] = useState<string | null>(null)
   const [sensorStatusCheckedAt, setSensorStatusCheckedAt] = useState(Date.now())
+  const activeRange = useRef(range)
+  const processedEventIds = useRef(new Set<string>())
+  activeRange.current = range
 
   useEffect(() => {
     const controller = new AbortController()
@@ -211,6 +226,16 @@ function App({ onLogout }: AppProps) {
   }, [])
 
   const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
+    if (event.type !== 'heartbeat') {
+      if (processedEventIds.current.has(event.id)) return
+
+      processedEventIds.current.add(event.id)
+      if (processedEventIds.current.size > MAX_PROCESSED_EVENT_IDS) {
+        const oldestEventId = processedEventIds.current.values().next().value
+        if (oldestEventId) processedEventIds.current.delete(oldestEventId)
+      }
+    }
+
     setLastEventAt(event.occurredAt)
     const eventTime = Date.parse(event.occurredAt)
     if (!Number.isNaN(eventTime)) {
@@ -233,9 +258,13 @@ function App({ onLogout }: AppProps) {
         }),
       )
       if (event.data.metric === 'temperature') {
-        setTemperature((current) => upsertTimestamped(current, event.data))
+        setTemperature((current) =>
+          upsertRangeBucket(current, event.data, activeRange.current),
+        )
       } else {
-        setHumidity((current) => upsertTimestamped(current, event.data))
+        setHumidity((current) =>
+          upsertRangeBucket(current, event.data, activeRange.current),
+        )
       }
       setSummary((current) =>
         current
@@ -256,7 +285,9 @@ function App({ onLogout }: AppProps) {
     }
 
     if (event.type === 'activity.updated') {
-      setActivity((current) => upsertTimestamped(current, event.data))
+      setActivity((current) =>
+        upsertRangeBucket(current, event.data, activeRange.current),
+      )
       setSummary((current) =>
         current
           ? { ...current, activity: { ...current.activity, current: event.data.activity } }

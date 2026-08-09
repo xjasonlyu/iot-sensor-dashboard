@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
-import type { RealtimeEvent } from '@iot-dashboard/api-contract'
+import type { ApiError, RealtimeEvent } from '@iot-dashboard/api-contract'
 
 export type { RealtimeEvent } from '@iot-dashboard/api-contract'
 
 const MAX_BUFFERED_EVENTS = 100
+
+interface BufferedEvent {
+  event: RealtimeEvent
+  networkId: number
+}
 
 function writeEvent(res: Response, event: RealtimeEvent, includeSseId = true): boolean {
   if (res.writableEnded || res.destroyed) return false
@@ -15,10 +20,10 @@ function writeEvent(res: Response, event: RealtimeEvent, includeSseId = true): b
 }
 
 class RealtimeHub {
-  private readonly clients = new Set<Response>()
-  private readonly eventBuffer: RealtimeEvent[] = []
+  private readonly clients = new Map<Response, number>()
+  private readonly eventBuffer: BufferedEvent[] = []
 
-  connect(req: Request, res: Response): void {
+  connect(req: Request, res: Response, networkId: number): void {
     res.status(200)
     res.set({
       'Content-Type': 'text/event-stream',
@@ -31,15 +36,18 @@ class RealtimeHub {
 
     const lastEventId = req.header('last-event-id')
     if (lastEventId) {
-      const lastIndex = this.eventBuffer.findIndex((event) => event.id === lastEventId)
+      const lastIndex = this.eventBuffer.findIndex(
+        (buffered) =>
+          buffered.networkId === networkId && buffered.event.id === lastEventId,
+      )
       if (lastIndex >= 0) {
-        for (const event of this.eventBuffer.slice(lastIndex + 1)) {
-          writeEvent(res, event)
+        for (const buffered of this.eventBuffer.slice(lastIndex + 1)) {
+          if (buffered.networkId === networkId) writeEvent(res, buffered.event)
         }
       }
     }
 
-    this.clients.add(res)
+    this.clients.set(res, networkId)
 
     const sendHeartbeat = () => {
       const heartbeat: RealtimeEvent = {
@@ -62,13 +70,16 @@ class RealtimeHub {
     })
   }
 
-  publish(event: RealtimeEvent): void {
+  publish(networkId: number, event: RealtimeEvent): void {
     if (event.type !== 'heartbeat') {
-      this.eventBuffer.push(event)
+      if (this.eventBuffer.some((buffered) => buffered.event.id === event.id)) return
+
+      this.eventBuffer.push({ event, networkId })
       if (this.eventBuffer.length > MAX_BUFFERED_EVENTS) this.eventBuffer.shift()
     }
 
-    for (const client of this.clients) {
+    for (const [client, clientNetworkId] of this.clients) {
+      if (clientNetworkId !== networkId) continue
       if (!writeEvent(client, event)) this.clients.delete(client)
     }
   }
@@ -81,5 +92,17 @@ class RealtimeHub {
 export const realtimeHub = new RealtimeHub()
 
 export function streamRealtimeEvents(req: Request, res: Response): void {
-  realtimeHub.connect(req, res)
+  const networkId =
+    typeof req.query.networkId === 'string' ? Number(req.query.networkId) : Number.NaN
+  if (!Number.isInteger(networkId) || networkId <= 0) {
+    const error: ApiError = {
+      code: 'INVALID_QUERY_PARAMETER',
+      message: 'The `networkId` query parameter must be a positive integer.',
+      requestId: randomUUID(),
+    }
+    res.status(400).json(error)
+    return
+  }
+
+  realtimeHub.connect(req, res, networkId)
 }

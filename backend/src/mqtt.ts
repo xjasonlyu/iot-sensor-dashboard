@@ -5,6 +5,10 @@ import { realtimeHub } from './realtime.js'
 
 let mqttClient: MqttClient | null = null
 
+type TelemetryTopic =
+  | { kind: 'activity'; networkId: number }
+  | { kind: 'events' | 'readings'; networkId: number; sensorId: string }
+
 function isRealtimeEvent(value: unknown): value is RealtimeEvent {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Record<string, unknown>
@@ -23,6 +27,41 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     candidate.data !== null &&
     typeof candidate.data === 'object'
   )
+}
+
+function parseTelemetryTopic(topic: string): TelemetryTopic | null {
+  const segments = topic.split('/')
+  if (segments[0] !== 'iot' || segments[1] !== 'networks') return null
+
+  const networkId = Number(segments[2])
+  if (!Number.isInteger(networkId) || networkId <= 0) return null
+
+  if (segments.length === 4 && segments[3] === 'activity') {
+    return { kind: 'activity', networkId }
+  }
+
+  const kind = segments[5]
+  const sensorId = segments[4]
+  if (
+    segments.length === 6 &&
+    segments[3] === 'sensors' &&
+    sensorId &&
+    (kind === 'events' || kind === 'readings')
+  ) {
+    return { kind, networkId, sensorId }
+  }
+
+  return null
+}
+
+function eventMatchesTopic(event: RealtimeEvent, topic: TelemetryTopic): boolean {
+  if (topic.kind === 'activity') {
+    return event.type === 'activity.updated' && event.data.networkId === topic.networkId
+  }
+  if (topic.kind === 'readings') {
+    return event.type === 'sensor.reading' && event.data.sensorId === topic.sensorId
+  }
+  return event.type === 'sensor.event' && event.data.sensorId === topic.sensorId
 }
 
 export function startMqtt(): MqttClient {
@@ -61,7 +100,13 @@ export function startMqtt(): MqttClient {
         console.warn(`Ignoring invalid MQTT payload on ${topic}`)
         return
       }
-      realtimeHub.publish(parsed)
+      const telemetryTopic = parseTelemetryTopic(topic)
+      if (!telemetryTopic || !eventMatchesTopic(parsed, telemetryTopic)) {
+        console.warn(`Ignoring MQTT payload that does not match its topic: ${topic}`)
+        return
+      }
+
+      realtimeHub.publish(telemetryTopic.networkId, parsed)
       void persistRealtimeEvent(parsed).catch((error: unknown) => {
         console.error(`Could not persist MQTT payload from ${topic}`, error)
       })
