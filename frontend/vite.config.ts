@@ -1,9 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+const e2eAuth0Stub = decodeURIComponent(
+  new URL('./e2e/auth0-stub.ts', import.meta.url).pathname,
+)
+
+export default defineConfig(({ mode }) => ({
   envDir: '..',
   plugins: [react()],
+  ...(mode === 'e2e'
+    ? {
+        resolve: {
+          alias: {
+            '@auth0/auth0-spa-js': e2eAuth0Stub,
+          },
+        },
+      }
+    : {}),
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {
@@ -40,4 +53,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

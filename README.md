@@ -171,6 +171,27 @@ npm run frontend:build
 docker compose config
 ```
 
+### End-to-end tests
+
+The Playwright suite covers the dashboard's initial data load, chart range changes,
+error recovery, and live SSE updates. It builds the real React application in
+`e2e` mode, where Auth0 and API traffic are replaced with deterministic browser
+fixtures; normal development and production builds continue to use Auth0 and the
+backend.
+
+Install the three JavaScript dependency sets and Chromium once, then run the suite:
+
+```bash
+npm ci
+npm ci --prefix packages/api-contract
+npm ci --prefix frontend
+npx playwright install chromium
+npm run e2e
+```
+
+Use `npm run e2e:ui` for Playwright's interactive runner. GitHub Actions runs the
+Chromium suite on every push and pull request and uploads the HTML report.
+
 After changing `backend/prisma/schema.prisma`, generate a migration and rebuild:
 
 ```bash
