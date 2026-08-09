@@ -6,7 +6,12 @@ import type {
   Sensor,
   SensorEvent,
 } from '@iot-dashboard/api-contract'
-import { apiErrorMessage, dashboardApi, networksApi, sensorsApi } from './api/client'
+import {
+  apiErrorMessage,
+  dashboardApi,
+  networksApi,
+  sensorsApi,
+} from './api/client'
 import type { RealtimeEvent } from './api/sse'
 import { ActivityChart, ClimateChart } from './components/DashboardCharts'
 import { MetricCard } from './components/MetricCard'
@@ -20,7 +25,8 @@ import {
 
 const NETWORK_ID = 1
 const MAX_LIVE_POINTS = 1_200
-const SENSOR_STATUS_POLL_MILLISECONDS = 15_000
+const SENSOR_OFFLINE_AFTER_MILLISECONDS = 5 * 60 * 1_000
+const SENSOR_STATUS_CHECK_MILLISECONDS = 15_000
 const ranges: Array<{ label: string; value: TimeRange }> = [
   { label: '1H', value: '1h' },
   { label: '6H', value: '6h' },
@@ -66,32 +72,20 @@ function upsertTimestamped<T extends { timestamp: string }>(
     .slice(-maxItems)
 }
 
-function mergeSensorSnapshots(current: Sensor[], refreshed: Sensor[]): Sensor[] {
-  const currentById = new Map(current.map((sensor) => [sensor.id, sensor]))
-
-  return refreshed.map((sensor) => {
-    const existing = currentById.get(sensor.id)
-    if (!existing?.lastSeenAt) return sensor
-
-    const existingLastSeen = Date.parse(existing.lastSeenAt)
-    const refreshedLastSeen = Date.parse(sensor.lastSeenAt ?? '')
-    if (Number.isNaN(existingLastSeen)) return sensor
-    if (!Number.isNaN(refreshedLastSeen) && refreshedLastSeen >= existingLastSeen) {
-      return sensor
-    }
-
-    // A realtime event can arrive just before its database write completes.
-    // Preserve that newer local snapshot until the next status poll catches up.
-    return {
-      ...sensor,
-      lastSeenAt: existing.lastSeenAt,
-      ...(existing.latestReadings ? { latestReadings: existing.latestReadings } : {}),
-      status: existing.status,
-    }
-  })
+function isSensorOnline(sensor: Sensor, checkedAt: number): boolean {
+  if (!sensor.lastSeenAt) return false
+  const lastSeenAt = Date.parse(sensor.lastSeenAt)
+  return (
+    !Number.isNaN(lastSeenAt) &&
+    checkedAt - lastSeenAt < SENSOR_OFFLINE_AFTER_MILLISECONDS
+  )
 }
 
-function App() {
+interface AppProps {
+  onLogout: () => Promise<void>
+}
+
+function App({ onLogout }: AppProps) {
   const [range, setRange] = useState<TimeRange>('24h')
   const [refreshKey, setRefreshKey] = useState(0)
   const [sensors, setSensors] = useState<Sensor[]>([])
@@ -104,6 +98,7 @@ function App() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [chartEndAt, setChartEndAt] = useState(Date.now())
   const [lastEventAt, setLastEventAt] = useState<string | null>(null)
+  const [sensorStatusCheckedAt, setSensorStatusCheckedAt] = useState(Date.now())
 
   useEffect(() => {
     const controller = new AbortController()
@@ -207,36 +202,12 @@ function App() {
   }, [range, refreshKey])
 
   useEffect(() => {
-    const controller = new AbortController()
-    let requestInFlight = false
-
-    async function refreshSensorStatuses(): Promise<void> {
-      if (requestInFlight) return
-      requestInFlight = true
-      try {
-        const response = await sensorsApi.listSensors(
-          { networkId: NETWORK_ID },
-          { signal: controller.signal },
-        )
-        if (!controller.signal.aborted) {
-          setSensors((current) => mergeSensorSnapshots(current, response.data))
-        }
-      } catch {
-        // Keep the last known snapshot; the next interval retries automatically.
-      } finally {
-        requestInFlight = false
-      }
-    }
-
     const timer = window.setInterval(
-      () => void refreshSensorStatuses(),
-      SENSOR_STATUS_POLL_MILLISECONDS,
+      () => setSensorStatusCheckedAt(Date.now()),
+      SENSOR_STATUS_CHECK_MILLISECONDS,
     )
 
-    return () => {
-      window.clearInterval(timer)
-      controller.abort()
-    }
+    return () => window.clearInterval(timer)
   }, [])
 
   const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
@@ -332,7 +303,9 @@ function App() {
     (metric) => metric.metric === 'temperature',
   )
   const latestHumidity = summary?.metrics.find((metric) => metric.metric === 'humidity')
-  const onlineSensors = sensors.filter((sensor) => sensor.status === 'online').length
+  const onlineSensors = sensors.filter((sensor) =>
+    isSensorOnline(sensor, sensorStatusCheckedAt),
+  ).length
   const offlineSensors = sensors.length - onlineSensors
   const dashboardStatus = loading && sensors.length === 0
     ? 'Checking your home…'
@@ -392,6 +365,13 @@ function App() {
             type="button"
           >
             <span aria-hidden="true">↻</span> Refresh
+          </button>
+          <button
+            className="refresh-button"
+            onClick={() => void onLogout()}
+            type="button"
+          >
+            Sign out
           </button>
         </div>
       </header>

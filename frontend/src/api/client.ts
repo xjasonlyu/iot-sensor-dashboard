@@ -12,8 +12,7 @@ import {
 
 export const apiBaseUrl = ''
 
-let accessTokenProvider: () => Promise<string | undefined> = async () =>
-  'development-token'
+let accessTokenProvider: () => Promise<string | undefined> = async () => undefined
 
 export function configureAccessTokenProvider(
   provider: () => Promise<string | undefined>,

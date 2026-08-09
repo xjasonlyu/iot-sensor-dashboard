@@ -13,11 +13,16 @@ docker compose up
 ```
 
 Open http://localhost:3000. The API and its health endpoint are available at
-http://localhost:9000 and http://localhost:9000/health.
+http://localhost:9000 and http://localhost:9000/health. An unauthenticated browser
+is redirected to the hosted Auth0 Universal Login page. Every successfully
+authenticated Auth0 account can currently access the dashboard.
 
-No `.env` file is required. The Compose file has local development defaults. To
-override the shared PostgreSQL credentials, copy `.env.example` to `.env` and edit
-the three values there.
+The repository includes a tracked `.env` containing the demo PostgreSQL and Auth0
+configuration, so a fresh clone needs no additional environment setup. Docker
+Compose reads it automatically and fails fast when a required value is missing.
+The Auth0 domain, SPA client ID, and API audience are public identifiers; the Auth0
+client secret is deliberately not used or stored. Replace these demo values before
+reusing the project for another environment.
 
 On the first startup, the backend applies committed Prisma migrations and runs an
 idempotent `loadInitialData()` import for `data/sensors.json` and
@@ -30,6 +35,8 @@ you intentionally want to delete the local database.
 - Current temperature, humidity, motion activity, door activity, and sensor status
 - Historical temperature/humidity and activity charts with selectable time ranges
 - Live chart and card updates from the MQTT simulator over authenticated SSE
+- OIDC Authorization Code flow with PKCE, token refresh, and sign-out
+- Backend JWT validation against the Auth0 issuer, API audience, and JWKS
 - Automatic SSE reconnect with exponential backoff and `Last-Event-ID` replay
 - Recent door detection timeline and meaningful loading, empty, and error states
 - A lightweight comfort/trend insight based on temperature and relative humidity
@@ -38,8 +45,11 @@ you intentionally want to delete the local database.
 ## Architecture
 
 ```text
-Python simulator -> EMQX -> Node.js/Express -> PostgreSQL/Prisma
+Browser -> Auth0 Universal Login -> API access token -> React
+                                                     |
+Python simulator -> EMQX -> Node.js/Express <-> Auth0 JWKS
                                   |
+                                  +-> PostgreSQL/Prisma
                                   +-> REST history + fetch-based SSE -> React
 ```
 
@@ -74,13 +84,38 @@ while Prisma provides a typed data layer for the TypeScript backend.
 number of data flows, so component state is sufficient. Recharts supplies
 responsive SVG charts without introducing a larger application state framework.
 
-**Authentication boundary.** The frontend sends `Bearer development-token`, and
-the backend currently accepts any non-empty Bearer token. This demonstrates the
-protected API boundary without embedding a fake password database. In production,
-the middleware would validate short-lived OAuth/OIDC JWTs and authorize access per
-network. The MQTT broker is anonymous only because it is isolated inside this
-assignment's Compose network; production MQTT should use client credentials, ACLs,
-and TLS.
+**OIDC authentication.** Auth0 handles passwords and user sessions; the React SPA
+uses the Authorization Code flow with PKCE and never stores a client secret. It
+sends a short-lived, API-specific access token in the existing Bearer header.
+Express validates the token's RS256 signature, issuer, expiry, and audience locally
+using Auth0's cached JWKS. There is intentionally no role gate yet, so any valid
+account is a viewer. The MQTT broker is anonymous only because it is isolated inside
+this assignment's Compose network; production MQTT should use client credentials,
+ACLs, and TLS.
+
+## Authentication configuration
+
+Auth0 provides the hosted login, password storage, account management, password
+reset, and optional social connections. In the Auth0 Application settings, add
+`http://localhost:3000` to **Allowed Callback URLs**, **Allowed Logout URLs**, and
+**Allowed Web Origins**. Then create an Auth0 Custom API named
+`iot-sensor-dashboard-api` with Identifier `https://iot-sensor-dashboard-api` and
+Signing Algorithm **RS256**. The Identifier is the OAuth audience; it is only an
+identifier and does not need to resolve to a website.
+
+The Auth0 variables in the root `.env` are:
+
+```text
+VITE_AUTH0_DOMAIN=your-tenant.us.auth0.com
+VITE_AUTH0_CLIENT_ID=your-spa-client-id
+VITE_AUTH0_AUDIENCE=https://your-api-identifier
+```
+
+These are identifiers, not secrets. The SPA redirects to Auth0, requests an access
+token for the configured API audience, and holds it in memory. Express validates
+that JWT locally and fetches Auth0's JWKS only when needed, so REST requests and SSE
+reconnects do not call UserInfo. For a deployed frontend, add its HTTPS URL to the
+same three Auth0 Application URL lists.
 
 ## API contract
 
@@ -139,10 +174,10 @@ npx prisma migrate dev --name describe_your_change
 
 ## Production follow-ups
 
-For a real deployment I would replace the development token middleware with OIDC
-verification, secure MQTT, add per-user network authorization and rate limits,
-move SSE replay from process memory to Redis, use a production static web server,
-and add integration plus browser end-to-end tests.
+For a real deployment I would require verified email/MFA as appropriate, add
+per-user network authorization and rate limits, secure MQTT, move SSE replay from
+process memory to Redis, use a production static web server, and add integration
+plus browser end-to-end tests.
 
 ## AI usage
 

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@auth0/auth0-spa-js": "^2.24.1",
     "@iot-dashboard/api-contract": "file:../packages/api-contract",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

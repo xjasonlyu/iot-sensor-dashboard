@@ -3,6 +3,13 @@
 FROM node:22-alpine AS build
 WORKDIR /workspace
 
+ARG VITE_AUTH0_DOMAIN
+ARG VITE_AUTH0_CLIENT_ID
+ARG VITE_AUTH0_AUDIENCE
+ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
+ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
+ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
+
 COPY packages/api-contract/package.json ./packages/api-contract/package.json
 COPY packages/api-contract/dist ./packages/api-contract/dist
 COPY packages/api-contract/src ./packages/api-contract/src

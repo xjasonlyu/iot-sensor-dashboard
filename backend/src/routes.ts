@@ -16,8 +16,8 @@ import type {
   SensorList,
   SensorStatus,
   TimeRange,
+  User,
 } from '@iot-dashboard/api-contract'
-import { developmentUser } from './auth.js'
 import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './prisma.js'
 import { streamRealtimeEvents } from './realtime.js'
@@ -194,8 +194,8 @@ function mapEvent(row: {
 
 export const apiRouter = Router()
 
-apiRouter.get('/me', (_req, res) => {
-  res.json(developmentUser)
+apiRouter.get('/me', (_req, res: Response<User>) => {
+  res.json(res.locals.user as User)
 })
 
 apiRouter.get(
