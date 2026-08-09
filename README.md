@@ -1,10 +1,8 @@
 # IoT Sensor Dashboard
 
-A full-stack dashboard for historical and live home sensor data. PostgreSQL holds
-the supplied dataset, EMQX carries simulated device messages, Node.js persists and
-forwards them, and React renders current values and charts in real time.
+A full-stack dashboard for historical and live home sensor data.
 
-## Run it
+## Quickstart
 
 From a fresh clone, the complete stack starts with one command:
 
