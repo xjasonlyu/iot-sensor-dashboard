@@ -1,5 +1,6 @@
 # IoT Sensor Dashboard
 
+[![E2E Test](https://img.shields.io/github/actions/workflow/status/xjasonlyu/iot-sensor-dashboard/e2e.yml?branch=main&logo=github&label=E2E)](https://github.com/xjasonlyu/iot-sensor-dashboard/actions/workflows/e2e.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](frontend)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-6BA539?logo=openapiinitiative&logoColor=white)](api_spec.yaml)
@@ -25,9 +26,12 @@ cd iot-sensor-dashboard
 docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The API is available at
-[http://localhost:9000](http://localhost:9000), with its health check at
-[http://localhost:9000/health](http://localhost:9000/health).
+Open <http://localhost:3000>. The backend API is available at
+<http://localhost:9000>, with a health endpoint at
+<http://localhost:9000/health>.
+
+Use either <http://localhost:3000> or <http://127.0.0.1:3000>; the demo Auth0
+tenant only allows these origins.
 
 The first startup applies the committed Prisma migrations and imports the bundled
 sensor and activity data. Later restarts reuse the PostgreSQL volume and skip the
@@ -44,7 +48,7 @@ docker compose down -v
 > [!NOTE]
 > The tracked `.env` contains demo PostgreSQL values and public Auth0 identifiers so
 > the project works without additional setup. Replace them before using the project
-> in another environment.
+> in another environment. No Auth0 client secret is used or stored.
 
 ## Demo Screenshots
 
@@ -69,7 +73,7 @@ publishes new data through the bundled simulator._
 
 ## License
 
-IoT Sensor Dashboard is free and open-source, licensed under the [MIT License](./LICENSE).
+IoT Sensor Dashboard is free and open-source, licensed under the [MIT License](LICENSE).
 
 ## How it works
 
@@ -97,7 +101,7 @@ IoT Sensor Dashboard is free and open-source, licensed under the [MIT License](.
 - Recent door detection timeline with clear loading, empty, and error states
 - Lightweight comfort and temperature-trend insight
 - Responsive layouts for desktop, tablet, and mobile
-- Generated TypeScript API models and client from the OpenAPI contract
+- Generated TypeScript API models and client from the OpenAPI specification
 - Playwright coverage for initial loading, range changes, recovery, and live updates
 
 ## Architecture
@@ -172,7 +176,8 @@ authorization is intentionally left as a production follow-up.
 
 [`api_spec.yaml`](api_spec.yaml) is the source of truth for the REST and SSE
 interface. OpenAPI Generator produces the shared TypeScript models and Fetch client
-in `packages/api-contract`.
+in `packages/api-contract`. Explore the contract with the
+[interactive Swagger UI](https://petstore.swagger.io/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fxjasonlyu%2Fiot-sensor-dashboard%2Fmain%2Fapi_spec.yaml).
 
 ```text
 GET /health
@@ -249,12 +254,12 @@ suite on every push and pull request and uploads the HTML report.
 
 A production deployment should add per-user network authorization, rate limiting,
 verified email or MFA where appropriate, MQTT credentials with ACLs and TLS, shared
-SSE replay storage such as Redis, a production static web server, and broader
-integration and end-to-end coverage.
+SSE replay storage such as Redis, a production static web server such as Nginx or
+Caddy, and broader integration and end-to-end coverage.
 
 ## AI usage
 
 AI assistance was used to review the assignment, compare architectural options,
-scaffold the OpenAPI/TypeScript boundaries, and identify verification cases. The
-implementation was kept intentionally small and validated with TypeScript builds,
-API checks, Docker health checks, and browser inspection.
+scaffold the OpenAPI/TypeScript boundaries, and refine documentation. The
+implementation was kept intentionally small and validated
+with TypeScript builds, API checks, Docker health checks, and browser inspection.
