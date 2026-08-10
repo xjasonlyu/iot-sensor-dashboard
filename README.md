@@ -1,7 +1,6 @@
 # IoT Sensor Dashboard
 
 [![E2E Test](https://img.shields.io/github/actions/workflow/status/xjasonlyu/iot-sensor-dashboard/e2e.yml?branch=main&logo=github&label=E2E)](https://github.com/xjasonlyu/iot-sensor-dashboard/actions/workflows/e2e.yml)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](frontend)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-6BA539?logo=openapiinitiative&logoColor=white)](api_spec.yaml)
 [![API Docs](https://img.shields.io/badge/Swagger_UI-Explore_API-85EA2D?logo=swagger&logoColor=black)](https://petstore.swagger.io/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fxjasonlyu%2Fiot-sensor-dashboard%2Fmain%2Fapi_spec.yaml)
