@@ -1,147 +1,178 @@
 # IoT Sensor Dashboard
 
-[![API Docs](https://img.shields.io/badge/Swagger_UI-Explore_API-85EA2D?logo=swagger&logoColor=black)](https://petstore.swagger.io/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fxjasonlyu%2Fiot-sensor-dashboard%2Fmain%2Fapi_spec.yaml)
-[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-6BA539?logo=openapiinitiative&logoColor=white)](api_spec.yaml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](frontend)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0.3-6BA539?logo=openapiinitiative&logoColor=white)](api_spec.yaml)
+[![API Docs](https://img.shields.io/badge/Swagger_UI-Explore_API-85EA2D?logo=swagger&logoColor=black)](https://petstore.swagger.io/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fxjasonlyu%2Fiot-sensor-dashboard%2Fmain%2Fapi_spec.yaml)
 [![Docker Compose](https://img.shields.io/badge/Docker_Compose-Ready-2496ED?logo=docker&logoColor=white)](docker-compose.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A full-stack dashboard for historical and live home sensor data.
+## Introduction
 
-## Quickstart
+IoT Sensor Dashboard is a full-stack home monitoring application for exploring
+historical sensor data and watching new readings arrive in real time. It combines a
+responsive React interface with an Express API, PostgreSQL persistence, MQTT device
+messaging, authenticated Server-Sent Events (SSE), and Auth0 login—all packaged as a
+five-container Docker Compose stack.
 
-From a fresh clone, the complete stack starts with one command:
+### Quickstart
+
+With Docker installed, start the complete stack from a fresh clone:
 
 ```bash
-docker compose up
+git clone https://github.com/xjasonlyu/iot-sensor-dashboard.git
+cd iot-sensor-dashboard
+docker compose up -d
 ```
 
-Open http://localhost:3000. The API and its health endpoint are available at
-http://localhost:9000 and http://localhost:9000/health. An unauthenticated browser
-is redirected to the hosted Auth0 Universal Login page. Every successfully
-authenticated Auth0 account can currently access the dashboard.
+Open [http://localhost:3000](http://localhost:3000). The API is available at
+[http://localhost:9000](http://localhost:9000), with its health check at
+[http://localhost:9000/health](http://localhost:9000/health).
 
-The repository includes a tracked `.env` containing the demo PostgreSQL and Auth0
-configuration, so a fresh clone needs no additional environment setup. Docker
-Compose reads it automatically and fails fast when a required value is missing.
-The Auth0 domain, SPA client ID, and API audience are public identifiers; the Auth0
-client secret is deliberately not used or stored. Replace these demo values before
-reusing the project for another environment.
+The first startup applies the committed Prisma migrations and imports the bundled
+sensor and activity data. Later restarts reuse the PostgreSQL volume and skip the
+completed import.
 
-On the first startup, the backend applies committed Prisma migrations and runs an
-idempotent `loadInitialData()` import for `data/sensors.json` and
-`data/activity.json`. Later restarts reuse the PostgreSQL volume and skip the
-completed import. Stop the services with `docker compose down`; add `-v` only when
-you intentionally want to delete the local database.
+```bash
+# Stop the stack and keep local data
+docker compose down
 
-## What is included
+# Stop the stack and reset local data
+docker compose down -v
+```
 
-- Current temperature, humidity, motion activity, door activity, and sensor status
-- Historical temperature/humidity and activity charts with selectable time ranges
-- Live chart and card updates from the MQTT simulator over authenticated SSE
-- OIDC Authorization Code flow with PKCE, token refresh, and sign-out
-- Backend JWT validation against the Auth0 issuer, API audience, and JWKS
-- Automatic SSE reconnect with exponential backoff and `Last-Event-ID` replay
-- Recent door detection timeline and meaningful loading, empty, and error states
-- A lightweight comfort/trend insight based on temperature and relative humidity
-- Responsive desktop, tablet, and mobile layout
+> [!NOTE]
+> The tracked `.env` contains demo PostgreSQL values and public Auth0 identifiers so
+> the project works without additional setup. Replace them before using the project
+> in another environment.
+
+## Demo Screenshots
+
+![IoT Sensor Dashboard](docs/dashboard-preview.jpg)
+
+_The screenshot uses deterministic demo readings; the Docker stack continuously
+publishes new data through the bundled simulator._
+
+## Contents
+
+- [License](#license)
+- [How it works](#how-it-works)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Technical decisions](#technical-decisions)
+- [Authentication](#authentication)
+- [API contract](#api-contract)
+- [Development](#development)
+- [Testing](#testing)
+- [Production considerations](#production-considerations)
+- [AI usage](#ai-usage)
+
+## License
+
+IoT Sensor Dashboard is free and open-source, licensed under the [MIT License](./LICENSE).
+
+## How it works
+
+1. Docker Compose starts the React frontend, Express backend, PostgreSQL database,
+   EMQX broker, and Python sensor simulator.
+2. The backend applies database migrations and idempotently imports the sample data
+   from `data/sensors.json` and `data/activity.json`.
+3. The simulator publishes temperature, humidity, motion, and door events to EMQX
+   over MQTT.
+4. Express consumes those messages, persists them through Prisma, and broadcasts
+   them to authenticated browsers over SSE.
+5. The dashboard loads bounded historical data through REST, then merges live SSE
+   events into its cards, charts, sensor status, and recent activity timeline.
+6. Auth0 handles user login with Authorization Code + PKCE; the backend validates
+   each API token against the configured issuer, audience, and JWKS.
+
+## Features
+
+- Live temperature, humidity, motion, door activity, and sensor status
+- Historical charts with selectable 1-hour, 6-hour, 24-hour, and 7-day ranges
+- MQTT-powered card and chart updates over authenticated SSE
+- Automatic reconnect with exponential backoff and `Last-Event-ID` replay
+- Auth0 login, token refresh, and sign-out using OIDC Authorization Code + PKCE
+- Backend JWT validation for signature, issuer, expiry, and API audience
+- Recent door detection timeline with clear loading, empty, and error states
+- Lightweight comfort and temperature-trend insight
+- Responsive layouts for desktop, tablet, and mobile
+- Generated TypeScript API models and client from the OpenAPI contract
+- Playwright coverage for initial loading, range changes, recovery, and live updates
 
 ## Architecture
 
-```text
-Browser -> Auth0 Universal Login -> API access token -> React
-                                                     |
-Python simulator -> EMQX -> Node.js/Express <-> Auth0 JWKS
-                                  |
-                                  +-> PostgreSQL/Prisma
-                                  +-> REST history + fetch-based SSE -> React
+```mermaid
+flowchart LR
+  Simulator["Python simulator"] -->|MQTT| EMQX["EMQX broker"]
+  EMQX --> Backend["Node.js / Express"]
+  Backend <--> Database[("PostgreSQL / Prisma")]
+  Browser["React dashboard"] -->|"REST + Bearer token"| Backend
+  Backend -->|"Authenticated SSE"| Browser
+  Browser <-->|"OIDC + PKCE"| Auth0["Auth0"]
+  Backend -->|"JWKS validation"| Auth0
 ```
 
-The five containers are defined in `docker-compose.yaml`:
+| Service     | Responsibility                                  | Host access      |
+| ----------- | ----------------------------------------------- | ---------------- |
+| `frontend`  | React/TypeScript build served by Vite Preview   | `localhost:3000` |
+| `backend`   | Express REST and SSE API                        | `localhost:9000` |
+| `postgres`  | Persistent PostgreSQL 17 database               | Internal only    |
+| `emqx`      | MQTT broker                                     | Internal only    |
+| `simulator` | Python publisher for sensor and activity events | Internal only    |
 
-- `frontend`: React/TypeScript build served by Vite Preview on port 3000
-- `backend`: Express/TypeScript REST and SSE API on port 9000
-- `postgres`: persistent PostgreSQL 17 database
-- `emqx`: internal anonymous MQTT broker
-- `simulator`: Python publisher for temperature, humidity, activity, and door events
-
-PostgreSQL, MQTT, and the EMQX dashboard are deliberately not published to the
-host. They are internal implementation details of the local stack.
+PostgreSQL, MQTT, and the EMQX dashboard are intentionally not published to the
+host. They remain implementation details of the local Compose network.
 
 ## Technical decisions
 
-**SSE for browser updates.** The data flow is one-way, so SSE has less protocol and
-client complexity than WebSockets. A fetch-based client can send the Bearer token,
-reconnect automatically, apply exponential backoff, and resume with
-`Last-Event-ID`. WebSockets would be a better choice if the browser also needed
-low-latency device controls or bidirectional collaboration.
+**SSE for browser updates.** The application has a one-way server-to-browser data
+flow, so SSE keeps the protocol and client smaller than WebSockets. A fetch-based
+client can attach the Bearer token, reconnect with backoff, and resume with
+`Last-Event-ID`. WebSockets would be preferable for low-latency device control or
+other bidirectional features.
 
-**REST for initial and historical state.** The browser first loads bounded,
-time-bucketed history over REST, then appends live SSE points. This keeps reconnects
-and page refreshes predictable without sending the entire history over a stream.
+**REST for initial and historical state.** The dashboard first requests bounded,
+time-bucketed history, then appends live SSE points. Refreshes and reconnects remain
+predictable without sending the entire history over a stream.
 
-**PostgreSQL with Prisma.** The supplied data and live events share one durable
-relational model. Committed migrations make a fresh Docker startup deterministic,
-while Prisma provides a typed data layer for the TypeScript backend.
+**PostgreSQL with Prisma.** Historical imports and live events share one durable,
+relational model. Committed migrations make startup deterministic, while Prisma
+provides a typed data layer for the TypeScript backend.
 
-**Plain React state and Recharts.** This dashboard has one screen and a small
-number of data flows, so component state is sufficient. Recharts supplies
-responsive SVG charts without introducing a larger application state framework.
+**Plain React state with Recharts.** The application has one primary screen and a
+small number of data flows, so component state is sufficient. Recharts adds
+responsive SVG charts without requiring a larger state-management framework.
 
-**OIDC authentication.** Auth0 handles passwords and user sessions; the React SPA
-uses the Authorization Code flow with PKCE and never stores a client secret. It
-sends a short-lived, API-specific access token in the existing Bearer header.
-Express validates the token's RS256 signature, issuer, expiry, and audience locally
-using Auth0's cached JWKS. There is intentionally no role gate yet, so any valid
-account is a viewer. The MQTT broker is anonymous only because it is isolated inside
-this assignment's Compose network; production MQTT should use client credentials,
-ACLs, and TLS.
+## Authentication
 
-## Authentication configuration
+Auth0 provides hosted login, account management, password reset, and optional social
+connections. The SPA holds its short-lived API token in memory and never receives a
+client secret. Express validates RS256 access tokens locally and refreshes Auth0's
+JWKS only when needed.
 
-Auth0 provides the hosted login, password storage, account management, password
-reset, and optional social connections. In the Auth0 Application settings, add
-`http://localhost:3000` to **Allowed Callback URLs**, **Allowed Logout URLs**, and
-**Allowed Web Origins**. Then create an Auth0 Custom API named
-`iot-sensor-dashboard-api` with Identifier `https://iot-sensor-dashboard-api` and
-Signing Algorithm **RS256**. The Identifier is the OAuth audience; it is only an
-identifier and does not need to resolve to a website.
+To use your own Auth0 tenant:
 
-The Auth0 variables in the root `.env` are:
+1. Create a **Single Page Application** and add `http://localhost:3000` to its
+   **Allowed Callback URLs**, **Allowed Logout URLs**, and **Allowed Web Origins**.
+2. Create an Auth0 Custom API with the identifier you want to use as the OAuth
+   audience and select **RS256**.
+3. Update the public identifiers in the root `.env`:
 
-```text
+```dotenv
 VITE_AUTH0_DOMAIN=your-tenant.us.auth0.com
 VITE_AUTH0_CLIENT_ID=your-spa-client-id
 VITE_AUTH0_AUDIENCE=https://your-api-identifier
 ```
 
-These are identifiers, not secrets. The SPA redirects to Auth0, requests an access
-token for the configured API audience, and holds it in memory. Express validates
-that JWT locally and fetches Auth0's JWKS only when needed, so REST requests and SSE
-reconnects do not call UserInfo. For a deployed frontend, add its HTTPS URL to the
-same three Auth0 Application URL lists.
+Every valid Auth0 account can currently view the dashboard; role- or network-based
+authorization is intentionally left as a production follow-up.
 
 ## API contract
 
-`api_spec.yaml` is the source of truth for the REST and SSE interface. OpenAPI
-Generator produces the shared TypeScript models and Fetch client in
-`packages/api-contract`.
-
-Regenerate them after changing the spec:
-
-```bash
-npm run api:generate
-```
-
-Client generation uses the pinned `openapitools/openapi-generator-cli:v7.24.0`
-Docker image, so it requires Docker but does not require a local Java installation.
-The generated TypeScript source in `packages/api-contract/src/generated` is checked
-in; do not edit it directly. The compiled client in `packages/api-contract/dist` is
-recreated from that source during Docker builds and by `npm run api:generate`, so a
-fresh clone never depends on ignored local build artifacts.
-
-Main endpoints:
+[`api_spec.yaml`](api_spec.yaml) is the source of truth for the REST and SSE
+interface. OpenAPI Generator produces the shared TypeScript models and Fetch client
+in `packages/api-contract`.
 
 ```text
 GET /health
@@ -154,13 +185,30 @@ GET /api/v1/networks/:networkId/activity
 GET /api/v1/realtime/events
 ```
 
-## Local development
+Regenerate the client after changing the specification:
 
-Install dependencies in `backend`, `frontend`, and `packages/api-contract`, then
-run the database and broker with Docker. The Vite dev server proxies `/api` to the
-backend on port 9000.
+```bash
+npm run api:generate
+```
 
-Useful checks from the repository root:
+Generation uses the pinned `openapitools/openapi-generator-cli:v7.24.0` Docker
+image, so it requires Docker but not a local Java installation. Generated source is
+committed under `packages/api-contract/src/generated` and should not be edited by
+hand.
+
+## Development
+
+Docker Compose is the canonical runtime. To install every JavaScript dependency set
+for local checks and editor tooling:
+
+```bash
+npm ci
+npm ci --prefix packages/api-contract
+npm ci --prefix backend
+npm ci --prefix frontend
+```
+
+Useful verification commands from the repository root:
 
 ```bash
 npm run api:generate
@@ -171,15 +219,20 @@ npm run frontend:build
 docker compose config
 ```
 
-### End-to-end tests
+After changing `backend/prisma/schema.prisma`, generate and apply a development
+migration:
 
-The Playwright suite covers the dashboard's initial data load, chart range changes,
-error recovery, and live SSE updates. It builds the real React application in
-`e2e` mode, where Auth0 and API traffic are replaced with deterministic browser
-fixtures; normal development and production builds continue to use Auth0 and the
-backend.
+```bash
+cd backend
+npm run prisma:generate
+npx prisma migrate dev --name describe_your_change
+```
 
-Install the three JavaScript dependency sets and Chromium once, then run the suite:
+## Testing
+
+The Playwright suite uses deterministic authentication and API fixtures while
+running the real React production build. Normal development and production builds
+continue to use Auth0 and the backend.
 
 ```bash
 npm ci
@@ -189,27 +242,19 @@ npx playwright install chromium
 npm run e2e
 ```
 
-Use `npm run e2e:ui` for Playwright's interactive runner. GitHub Actions runs the
-Chromium suite on every push and pull request and uploads the HTML report.
+Use `npm run e2e:ui` for the interactive runner. GitHub Actions runs the Chromium
+suite on every push and pull request and uploads the HTML report.
 
-After changing `backend/prisma/schema.prisma`, generate a migration and rebuild:
+## Production considerations
 
-```bash
-cd backend
-npm run prisma:generate
-npx prisma migrate dev --name describe_your_change
-```
-
-## Production follow-ups
-
-For a real deployment I would require verified email/MFA as appropriate, add
-per-user network authorization and rate limits, secure MQTT, move SSE replay from
-process memory to Redis, use a production static web server, and add integration
-plus browser end-to-end tests.
+A production deployment should add per-user network authorization, rate limiting,
+verified email or MFA where appropriate, MQTT credentials with ACLs and TLS, shared
+SSE replay storage such as Redis, a production static web server, and broader
+integration and end-to-end coverage.
 
 ## AI usage
 
 AI assistance was used to review the assignment, compare architectural options,
 scaffold the OpenAPI/TypeScript boundaries, and identify verification cases. The
-implementation was kept intentionally small and each generated part was validated
-with TypeScript builds, API checks, Docker health checks, and browser inspection.
+implementation was kept intentionally small and validated with TypeScript builds,
+API checks, Docker health checks, and browser inspection.
