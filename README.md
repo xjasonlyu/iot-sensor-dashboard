@@ -60,8 +60,8 @@ docker compose down -v
 
 ![IoT Sensor Dashboard](docs/dashboard-preview.jpg)
 
-_The screenshot uses deterministic demo readings; the Docker stack continuously
-publishes new data through the bundled simulator._
+_The screenshot shows the 1-year view: imported 2025 history remains visible while
+the Docker simulator continues appending live 2026 readings._
 
 ## Contents
 
@@ -99,7 +99,7 @@ IoT Sensor Dashboard is free and open-source, licensed under the [MIT License](L
 ## Features
 
 - Live temperature, humidity, motion, door activity, and sensor status
-- Historical charts with selectable 1-hour, 6-hour, 24-hour, and 7-day ranges
+- Historical charts with 1H, 6H, 24H, 7D, 30D, and 1Y presets
 - MQTT-powered card and chart updates over authenticated SSE
 - Automatic reconnect with exponential backoff and `Last-Event-ID` replay
 - Auth0 login, token refresh, and sign-out using OIDC Authorization Code + PKCE
@@ -151,8 +151,24 @@ relational model. Committed migrations make startup deterministic, while Prisma
 provides a typed data layer for the TypeScript backend.
 
 **Plain React state with Recharts.** The application has one primary screen and a
-small number of data flows, so component state is sufficient. Recharts adds
-responsive SVG charts without requiring a larger state-management framework.
+small number of data flows, so `useState` keeps server snapshots and UI state close
+to the components that render them. `useMemo` derives presentation data, while
+`useRef` holds mutable stream bookkeeping such as the active range and processed
+event IDs without triggering extra renders. Redux or Zustand would add indirection
+without solving a current cross-screen state problem; either would become more
+valuable if the product grew into multiple routes with shared filters and caches.
+
+Recharts provides responsive, accessible SVG line and area charts that compose
+naturally with React. It covers this dashboard's tooltips, axes, legends, and
+responsive sizing with less custom code than D3. D3 would be the better choice for
+highly bespoke interactions or canvas-scale rendering; Chart.js would also be a
+reasonable option, but its imperative canvas lifecycle is less aligned with the
+component structure used here.
+
+**Preset history ranges with adaptive aggregation.** Common monitoring windows stay
+one click away, while the API reduces long views to larger time buckets: the 1-year
+view uses daily points instead of returning raw per-second readings. This keeps the
+payload and chart bounded while making the bundled 2025 sample data useful in 2026.
 
 ## Authentication
 
@@ -242,8 +258,9 @@ npx prisma migrate dev --name describe_your_change
 ## Testing
 
 The Playwright suite uses deterministic authentication and API fixtures while
-running the real React production build. Normal development and production builds
-continue to use Auth0 and the backend.
+running the real React production build. It covers the six visible presets and
+verifies that the 1-year selection requests daily aggregation. Normal development
+and production builds continue to use Auth0 and the backend.
 
 ```bash
 npm ci
@@ -262,6 +279,13 @@ A production deployment should add per-user network authorization, rate limiting
 verified email or MFA where appropriate, MQTT credentials with ACLs and TLS, shared
 SSE replay storage such as Redis, a production static web server such as Nginx or
 Caddy, and broader integration and end-to-end coverage.
+
+The next history UX improvement would keep the fast presets and add a **Custom**
+from/to date selector. The backend would apply an aggregation interval based on the
+selected duration, summary endpoints would accept the same explicit window, and the
+UI would distinguish historical inspection from live mode with a clear **Return to
+live** action. While inspecting a past window, SSE can remain connected for health
+status without appending new points to the historical chart.
 
 ## AI usage
 

@@ -45,6 +45,9 @@ interface ActivityChartProps extends TimeChartProps {
 
 function formatAxisTime(value: number, range: TimeRange): string {
   const date = new Date(value)
+  if (range === '1y') {
+    return date.toLocaleDateString([], { month: 'short', year: '2-digit' })
+  }
   if (range === '7d' || range === '30d') {
     return date.toLocaleDateString([], { day: 'numeric', month: 'short' })
   }
@@ -69,6 +72,19 @@ function buildTimeTicks(
   windowStart: number,
   windowEnd: number,
 ): number[] {
+  if (range === '1y') {
+    const tick = new Date(windowStart)
+    tick.setHours(0, 0, 0, 0)
+    tick.setDate(1)
+    tick.setMonth(tick.getMonth() + 1)
+    const ticks: number[] = []
+    while (tick.getTime() <= windowEnd) {
+      ticks.push(tick.getTime())
+      tick.setMonth(tick.getMonth() + 1)
+    }
+    return ticks
+  }
+
   if (range === '7d' || range === '30d') {
     const tick = new Date(windowStart)
     tick.setHours(0, 0, 0, 0)
@@ -107,15 +123,17 @@ function coverageLabel(
   }
   const date = new Date(firstTimestamp)
   const formatted =
-    range === '7d' || range === '30d'
-      ? date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-      : range === '24h'
-        ? date.toLocaleString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-            weekday: 'short',
-          })
-        : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    range === '1y'
+      ? date.toLocaleDateString([], { dateStyle: 'medium' })
+      : range === '7d' || range === '30d'
+        ? date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+        : range === '24h'
+          ? date.toLocaleString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+              weekday: 'short',
+            })
+          : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   return `Data available since ${formatted}`
 }
 

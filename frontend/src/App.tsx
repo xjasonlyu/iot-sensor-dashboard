@@ -34,6 +34,8 @@ const ranges: Array<{ label: string; value: TimeRange }> = [
   { label: '6H', value: '6h' },
   { label: '24H', value: '24h' },
   { label: '7D', value: '7d' },
+  { label: '30D', value: '30d' },
+  { label: '1Y', value: '1y' },
 ]
 const chartModeLabels: Record<TimeRange, string> = {
   '1h': '3 min trend · live',
@@ -41,6 +43,7 @@ const chartModeLabels: Record<TimeRange, string> = {
   '24h': '15 min avg · live',
   '7d': '1 hour avg · live',
   '30d': '1 day avg · live',
+  '1y': '1 day avg · live',
 }
 
 function formatValue(value: number | undefined, fractionDigits = 1): string {

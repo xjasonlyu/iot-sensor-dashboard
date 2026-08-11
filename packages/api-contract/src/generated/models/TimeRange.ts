@@ -22,7 +22,8 @@ export const TimeRange = {
     _6h: '6h',
     _24h: '24h',
     _7d: '7d',
-    _30d: '30d'
+    _30d: '30d',
+    _1y: '1y'
 } as const;
 export type TimeRange = typeof TimeRange[keyof typeof TimeRange];
 

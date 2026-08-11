@@ -759,7 +759,7 @@ components:
 
     TimeRange:
       type: string
-      enum: [1h, 6h, 24h, 7d, 30d]
+      enum: [1h, 6h, 24h, 7d, 30d, 1y]
 
     ApiError:
       type: object

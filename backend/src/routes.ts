@@ -22,13 +22,14 @@ import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './prisma.js'
 import { streamRealtimeEvents } from './realtime.js'
 
-const timeRanges = new Set<TimeRange>(['1h', '6h', '24h', '7d', '30d'])
+const timeRanges = new Set<TimeRange>(['1h', '6h', '24h', '7d', '30d', '1y'])
 const rangeMilliseconds: Record<TimeRange, number> = {
   '1h': 60 * 60 * 1_000,
   '6h': 6 * 60 * 60 * 1_000,
   '24h': 24 * 60 * 60 * 1_000,
   '7d': 7 * 24 * 60 * 60 * 1_000,
   '30d': 30 * 24 * 60 * 60 * 1_000,
+  '1y': 365 * 24 * 60 * 60 * 1_000,
 }
 const intervalMilliseconds: Record<Exclude<Interval, 'raw'>, number> = {
   '1m': 60 * 1_000,

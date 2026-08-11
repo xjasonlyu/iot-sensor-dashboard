@@ -8,6 +8,7 @@ export const RANGE_MILLISECONDS: Record<TimeRange, number> = {
   '24h': 24 * 60 * 60 * 1_000,
   '7d': 7 * 24 * 60 * 60 * 1_000,
   '30d': 30 * 24 * 60 * 60 * 1_000,
+  '1y': 365 * 24 * 60 * 60 * 1_000,
 }
 
 export const RANGE_INTERVALS: Record<TimeRange, Interval> = {
@@ -16,6 +17,7 @@ export const RANGE_INTERVALS: Record<TimeRange, Interval> = {
   '24h': '15m',
   '7d': '1h',
   '30d': '1d',
+  '1y': '1d',
 }
 
 export const RANGE_BUCKET_MILLISECONDS: Record<TimeRange, number> = {
@@ -24,4 +26,5 @@ export const RANGE_BUCKET_MILLISECONDS: Record<TimeRange, number> = {
   '24h': 15 * 60 * 1_000,
   '7d': 60 * 60 * 1_000,
   '30d': 24 * 60 * 60 * 1_000,
+  '1y': 24 * 60 * 60 * 1_000,
 }
