@@ -110,6 +110,7 @@ export async function installDashboardApiMocks(
   options: DashboardApiMockOptions = {},
 ) {
   const authorizationHeaders: string[] = []
+  const requestedIntervals: string[] = []
   const requestedRanges: string[] = []
   let remainingSummaryFailures = options.summaryFailures ?? 0
   let realtimeResponseSent = false
@@ -141,6 +142,7 @@ export async function installDashboardApiMocks(
 
     if (url.pathname === `/api/v1/sensors/${climateSensorId}/readings`) {
       const metric = url.searchParams.get('metric')
+      requestedIntervals.push(url.searchParams.get('interval') ?? 'raw')
       await route.fulfill({
         json: metric === 'temperature' ? history.temperature : history.humidity,
       })
@@ -153,6 +155,7 @@ export async function installDashboardApiMocks(
     }
 
     if (url.pathname === '/api/v1/networks/1/activity') {
+      requestedIntervals.push(url.searchParams.get('interval') ?? 'raw')
       await route.fulfill({ json: history.activity })
       return
     }
@@ -191,7 +194,7 @@ export async function installDashboardApiMocks(
     })
   })
 
-  return { authorizationHeaders, requestedRanges }
+  return { authorizationHeaders, requestedIntervals, requestedRanges }
 }
 
 export const e2eSensorIds = { climateSensorId, doorSensorId }

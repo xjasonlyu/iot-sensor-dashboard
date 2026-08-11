@@ -15,6 +15,9 @@ test('renders the dashboard summary, charts, and recent activity', async ({ page
   await expect(page.getByLabel('Temperature and humidity history chart')).toBeVisible()
   await expect(page.getByLabel('Motion activity history chart')).toBeVisible()
   await expect(page.locator('.event-list').getByRole('listitem')).toHaveCount(2)
+  for (const range of ['1H', '6H', '24H', '7D', '30D', '1Y']) {
+    await expect(page.getByRole('button', { name: range, exact: true })).toBeVisible()
+  }
   expect(api.authorizationHeaders).toContain('Bearer e2e-access-token')
 })
 
@@ -29,6 +32,17 @@ test('reloads dashboard data when the chart range changes', async ({ page }) => 
   await expect(page.getByText('3 min trend · live')).toBeVisible()
   await expect(page.locator('.metric-card').filter({ hasText: 'Temperature' })).toContainText('1H')
   await expect.poll(() => api.requestedRanges).toContain('1h')
+
+  await page.getByRole('button', { name: '1Y', exact: true }).click()
+
+  await expect(page.getByRole('button', { name: '1Y', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByText('1 day avg · live')).toBeVisible()
+  await expect(page.locator('.metric-card').filter({ hasText: 'Temperature' })).toContainText('1Y')
+  await expect.poll(() => api.requestedRanges).toContain('1y')
+  await expect.poll(() => api.requestedIntervals).toContain('1d')
 })
 
 test('shows an API error and recovers when the user retries', async ({ page }) => {
