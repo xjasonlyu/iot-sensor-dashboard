@@ -32,6 +32,13 @@ Open <http://localhost:3000>. The backend API is available at
 Use either <http://localhost:3000> or <http://127.0.0.1:3000>; the demo Auth0
 tenant only allows these origins.
 
+Sign in to the demo Auth0 tenant with the following demo-only credentials:
+
+```text
+Email:    demo@example.com
+Password: demo
+```
+
 The first startup applies the committed Prisma migrations and imports the bundled
 sensor and activity data. Later restarts reuse the PostgreSQL volume and skip the
 completed import.
