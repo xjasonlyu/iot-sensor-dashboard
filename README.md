@@ -69,6 +69,7 @@ the Docker simulator continues appending live 2026 readings._
 - [How it works](#how-it-works)
 - [Features](#features)
 - [Architecture](#architecture)
+- [Data model](#data-model)
 - [Technical decisions](#technical-decisions)
 - [Authentication](#authentication)
 - [API contract](#api-contract)
@@ -133,6 +134,75 @@ flowchart LR
 
 PostgreSQL, MQTT, and the EMQX dashboard are intentionally not published to the
 host. They remain implementation details of the local Compose network.
+
+## Data model
+
+The schema keeps device metadata separate from high-volume time-series readings
+and events. Networks own sensors and aggregate activity, while each sensor owns its
+individual readings and door events.
+
+```mermaid
+erDiagram
+  NETWORK ||--o{ SENSOR : contains
+  NETWORK ||--o{ ACTIVITY_BUCKET : records
+  SENSOR ||--o{ SENSOR_READING : produces
+  SENSOR ||--o{ SENSOR_EVENT : emits
+
+  NETWORK {
+    int id PK
+    string name
+  }
+
+  SENSOR {
+    string thing_name PK
+    int network_id FK
+    string location_name
+    string_array capabilities
+    timestamptz last_seen_at
+  }
+
+  SENSOR_READING {
+    string id PK
+    string thing_name FK
+    string metric
+    float value
+    string unit
+    timestamptz recorded_at
+  }
+
+  SENSOR_EVENT {
+    string id PK
+    string thing_name FK
+    string event_type
+    timestamptz recorded_at
+  }
+
+  ACTIVITY_BUCKET {
+    int network_id PK, FK
+    timestamptz recorded_at PK
+    float activity
+  }
+
+  DATA_IMPORT {
+    string key PK
+    timestamptz imported_at
+  }
+```
+
+| Table | Purpose | Key design |
+| ----- | ------- | ---------- |
+| `networks` | Top-level ownership boundary for a monitored home or site | Integer primary key |
+| `sensors` | Device identity, location, capabilities, and latest contact time | Indexed by `network_id` |
+| `sensor_readings` | Temperature, humidity, and other numeric time-series readings | Indexed by `(thing_name, recorded_at)` for bounded history queries |
+| `sensor_events` | Discrete sensor events such as front-door motion detections | Indexed by `(thing_name, recorded_at)` for recent-event queries |
+| `activity_buckets` | Network-level motion percentages for each time bucket | Composite primary key `(network_id, recorded_at)` prevents duplicate buckets |
+| `data_imports` | Records completed seed imports so startup remains idempotent | Import key is the primary key; this table has no domain relationships |
+
+The committed Prisma schema at
+[`backend/prisma/schema.prisma`](backend/prisma/schema.prisma) is the source of
+truth for columns, relations, mappings, and indexes. The diagram intentionally
+shows the operational `data_imports` table without a relationship because it tracks
+startup work rather than domain data.
 
 ## Technical decisions
 
