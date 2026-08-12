@@ -220,20 +220,20 @@ predictable without sending the entire history over a stream.
 relational model. Committed migrations make startup deterministic, while Prisma
 provides a typed data layer for the TypeScript backend.
 
-**Plain React state with Recharts.** The application has one primary screen and a
-small number of data flows, so `useState` keeps server snapshots and UI state close
+**Plain React state.** The application has one primary screen and a small number of
+data flows, so `useState` keeps server snapshots and UI state close
 to the components that render them. `useMemo` derives presentation data, while
 `useRef` holds mutable stream bookkeeping such as the active range and processed
 event IDs without triggering extra renders. Redux or Zustand would add indirection
 without solving a current cross-screen state problem; either would become more
 valuable if the product grew into multiple routes with shared filters and caches.
 
-Recharts provides responsive, accessible SVG line and area charts that compose
-naturally with React. It covers this dashboard's tooltips, axes, legends, and
-responsive sizing with less custom code than D3. D3 would be the better choice for
-highly bespoke interactions or canvas-scale rendering; Chart.js would also be a
-reasonable option, but its imperative canvas lifecycle is less aligned with the
-component structure used here.
+**Recharts for visualization.** Recharts provides responsive, accessible SVG line
+and area charts that compose naturally with React. It covers this dashboard's
+tooltips, axes, legends, and responsive sizing with less custom code than D3. D3
+would be the better choice for highly bespoke interactions or canvas-scale
+rendering; Chart.js would also be a reasonable option, but its imperative canvas
+lifecycle is less aligned with the component structure used here.
 
 **Preset history ranges with adaptive aggregation.** Common monitoring windows stay
 one click away, while the API reduces long views to larger time buckets: the 1-year
